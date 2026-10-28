@@ -1,0 +1,81 @@
+import assert from "node:assert/strict";
+const base=process.env.ORBIT_E2E_BASE_URL;if(!base)throw Error("ORBIT_E2E_BASE_URL is required");
+let cookie="";const json=(body,method="POST")=>({method,headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+async function raw(path,options={}){const headers=new Headers(options.headers);if(cookie)headers.set("cookie",cookie);const response=await fetch(base+path,{...options,headers});const token=response.headers.get("set-cookie");if(token)cookie=token.split(";",1)[0];const text=await response.text();let data;try{data=JSON.parse(text);}catch{data=text;}return{response,data};}
+async function req(path,options={},expected=200){const result=await raw(path,options);assert.equal(result.response.status,expected,`${path}: ${JSON.stringify(result.data)}`);return result.data;}
+
+await req("/api/setup",json({username:"v30_admin",displayName:"V30管理员",password:"V30-Test-2026!"}),201);const adminCookie=cookie;
+const admin=await req("/api/admin"),account=admin.accounts[0],group=admin.groups[0];assert.ok(account?.id&&group?.accountId===account.id);
+await req("/api/product-masters",json({name:"V30测试产品"}),201);
+const uploaderRole=await req("/api/admin",json({entity:"role",name:"素材上传人员",permissions:[]}),201);
+const reviewerRole=await req("/api/admin",json({entity:"role",name:"素材审核人员",permissions:[]}),201);
+const editorRole=await req("/api/admin",json({entity:"role",name:"内容剪辑人员",permissions:[]}),201);
+const uploader=await req("/api/admin",json({entity:"user",username:"v30_uploader",displayName:"素材上传甲",password:"V30-Test-2026!",roleId:uploaderRole.id,accountResponsibilities:{materialUpload:[account.id]}}),201);
+await req("/api/admin",json({entity:"user",username:"v30_reviewer",displayName:"素材审核甲",password:"V30-Test-2026!",roleId:reviewerRole.id,accountResponsibilities:{materialReview:[account.id]}}),201);
+await req("/api/admin",json({entity:"user",username:"v30_editor",displayName:"剪辑成员甲",password:"V30-Test-2026!",roleId:editorRole.id,primaryGroupId:group.id,groupScopes:{view:[group.id],upload:[group.id]}}),201);
+const exceptionRole=await req("/api/admin",json({entity:"role",name:"个人例外测试角色",permissions:["analytics.view"]}),201);
+const exceptionUser=await req("/api/admin",json({entity:"user",username:"v30_exception",displayName:"个人例外员工",password:"V30-Test-2026!",roleId:exceptionRole.id,permissionGrants:["notice.view"],permissionDenies:["analytics.view"]}),201);
+await req("/api/admin",json({entity:"role",id:exceptionRole.id,name:"个人例外测试角色",dataScope:"self",permissions:["analytics.view","business.view"]},"PATCH"));
+await req("/api/auth/login",json({username:"v30_exception",password:"V30-Test-2026!"}));
+const exceptionDashboard=await req("/api/dashboard");assert.ok(exceptionDashboard.user.permissions.includes("notice.view")&&exceptionDashboard.user.permissions.includes("business.view"));assert.ok(!exceptionDashboard.user.permissions.includes("analytics.view")&&exceptionDashboard.user.deniedPermissions.includes("analytics.view"));
+cookie=adminCookie;const persistedException=(await req("/api/admin")).users.find(item=>item.id===exceptionUser.id);assert.deepEqual(persistedException.permissionGrants,["notice.view"]);assert.deepEqual(persistedException.permissionDenies,["analytics.view"]);
+
+await req("/api/auth/login",json({username:"v30_uploader",password:"V30-Test-2026!"}));const uploaderCookie=cookie;
+const productImage=new Uint8Array([255,216,255,217]);
+const inlineProduct=await req("/api/product-masters",json({name:"上传时新增的产品",imageType:"image/jpeg"}),201);
+await req(inlineProduct.imageUploadUrl,{method:"PUT",headers:{"content-type":"image/jpeg"},body:productImage});
+const bytes=new TextEncoder().encode("v30 material set file");
+const created=await req("/api/material-sets",json({title:"耳饰拍摄第一套",description:"白底和佩戴场景",category:"产品展示",tags:["竖屏","近景"],productMasterId:inlineProduct.id,accountId:account.id,files:[{fileName:"scene.mp4",mimeType:"video/mp4",fileSize:bytes.length}]}),201);
+await req(created.uploads[0].uploadUrl,{method:"PUT",headers:{"content-type":"video/mp4"},body:bytes});
+await req(`/api/material-sets/${created.id}`,json({action:"submit"},"PATCH"));
+
+await req("/api/auth/login",json({username:"v30_reviewer",password:"V30-Test-2026!"}));const reviewerCookie=cookie;
+assert.ok((await req("/api/material-sets?scope=review&status=pending")).items.some(item=>item.id===created.id));
+await req(`/api/material-sets/${created.id}`,json({action:"review",decision:"rejected",comment:"缺少产品细节近景"},"PATCH"));
+await req("/api/auth/login",json({username:"v30_editor",password:"V30-Test-2026!"}));await req(created.uploads[0].uploadUrl,{},404);
+cookie=uploaderCookie;await req(`/api/material-sets/${created.id}`,json({action:"submit"},"PATCH"),400);
+const addedBytes=new TextEncoder().encode("v34 replacement close-up material"),cancelled=await req(`/api/material-sets/${created.id}/files`,json({files:[{fileName:"cancelled.mp4",mimeType:"video/mp4",fileSize:addedBytes.length}]}),201);await req(cancelled.uploads[0].uploadUrl,{method:"PUT",headers:{"content-type":"video/mp4"},body:addedBytes});
+const beforeCancel=await req(`/api/material-sets/${created.id}`);assert.equal(beforeCancel.fileCount,1);assert.equal(beforeCancel.title,"耳饰拍摄第一套");
+await req(`/api/material-sets/${created.id}/files`,{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({token:cancelled.token})});
+const afterCancel=await req(`/api/material-sets/${created.id}`);assert.equal(afterCancel.fileCount,1);assert.equal(afterCancel.title,"耳饰拍摄第一套");
+const added=await req(`/api/material-sets/${created.id}/files`,json({files:[{fileName:"close-up.mp4",mimeType:"video/mp4",fileSize:addedBytes.length}]}),201);await req(added.uploads[0].uploadUrl,{method:"PUT",headers:{"content-type":"video/mp4"},body:addedBytes});
+await req(`/api/material-sets/${created.id}`,json({action:"edit",title:"耳饰拍摄第一套-已修改",description:"白底、佩戴场景和补拍的产品近景",category:"细节特写",tags:["竖屏","近景"],productMasterId:inlineProduct.id,accountId:account.id,editToken:added.token,removeFileIds:[created.uploads[0].id]},"PATCH"));
+const editedDetail=await req(`/api/material-sets/${created.id}`);assert.equal(editedDetail.fileCount,1);assert.equal(editedDetail.files[0].fileName,"close-up.mp4");assert.equal(editedDetail.category,"细节特写");assert.deepEqual(editedDetail.tags,["竖屏","近景"]);
+await req(`/api/material-sets/${created.id}`,json({action:"submit",resubmissionNote:"已补充细节近景说明"},"PATCH"));
+cookie=reviewerCookie;await req(`/api/material-sets/${created.id}`,json({action:"review",decision:"approved",comment:"符合入库标准"},"PATCH"));
+
+await req("/api/auth/login",json({username:"v30_editor",password:"V30-Test-2026!"}));
+const initialPool=await req("/api/material-sets?status=admitted"),admitted=initialPool.items.find(item=>item.id===created.id);assert.ok(admitted,"content-group members see admitted account materials");assert.equal(admitted.viewedByMe,false);assert.equal(admitted.claimedByMe,false);
+const claimOnlyPool=await req("/api/material-sets?status=rejected");assert.equal(claimOnlyPool.capabilities.claimOnly,true);assert.ok(claimOnlyPool.items.every(item=>item.status==="admitted"));
+const detail=await req(`/api/material-sets/${created.id}`);assert.equal(detail.claimedByMe,false);assert.deepEqual(detail.reviews,[]);assert.equal(detail.audienceMode,"claim");assert.ok((await req("/api/material-sets?status=admitted")).items.find(item=>item.id===created.id).viewedByMe);
+const materialZip=await fetch(base+`/api/material-sets/${created.id}/download`,{headers:{cookie}});assert.equal(materialZip.status,200);const materialZipBytes=new Uint8Array(await materialZip.arrayBuffer());assert.deepEqual([...materialZipBytes.slice(0,4)],[0x50,0x4b,0x03,0x04]);assert.ok(materialZipBytes.length>addedBytes.length);
+const claimedPool=await req("/api/material-sets?status=admitted"),claimed=claimedPool.items.find(item=>item.id===created.id);assert.equal(claimed.claimedByMe,true);assert.ok(claimed.myClaimedAt);
+cookie=adminCookie;const final=await req(`/api/material-sets/${created.id}`);assert.equal(final.status,"admitted");assert.ok(final.reviews.some(review=>review.decision==="rejected")&&final.reviews.some(review=>review.decision==="approved"));assert.equal(final.claims.find(item=>item.userName==="剪辑成员甲").downloadCount,1);
+await req(`/api/material-sets/${created.id}`,json({action:"delete"},"PATCH"));assert.ok(!(await req("/api/material-sets?status=all")).items.some(item=>item.id===created.id));assert.ok((await req("/api/material-sets?trash=1")).items.some(item=>item.id===created.id));await req(`/api/material-sets/${created.id}`,json({action:"restore"},"PATCH"));assert.ok((await req("/api/material-sets?status=admitted")).items.some(item=>item.id===created.id));
+
+const business=await req("/api/business-data");
+const publishingAccount=business.accounts.find(item=>item.id===account.id),platform=business.platforms.find(item=>item.id===publishingAccount.platformId);
+const store=await req("/api/business-data",json({entity:"store",platformCode:platform.code,name:"V30店铺",code:"V30-STORE"}),201);
+const contentProduct=await req("/api/business-data",json({entity:"product",platformCode:platform.code,storeId:store.id,name:"V30发布商品",code:"V30-PRODUCT"}),201);
+const media=new TextEncoder().encode("v30 publish lock");
+const content=(await req("/api/contents",json({groupId:group.id,items:[{title:"V30发布锁测试",contentType:"video",accountId:account.id,productId:contentProduct.id,files:[{fileName:"publish.mp4",mimeType:"video/mp4",fileSize:media.length}]}]}),201)).items[0];
+await req(content.uploads[0].uploadUrl,{method:"PUT",headers:{"content-type":"video/mp4"},body:media});
+await req(`/api/contents/${content.contentCode}`,json({action:"submit"},"PATCH"));
+const session=await req("/api/review-sessions",json({contentCodes:[content.contentCode]}),201),queue=await req(`/api/review-sessions/${session.sessionId}`);
+await req(`/api/review-sessions/${session.sessionId}`,json({queueItemId:queue.items[0].queueItemId,decision:"approved",comment:"可以发布"},"PATCH"));
+await req(`/api/review-sessions/${session.sessionId}`,{method:"POST"});
+const publisherRole=await req("/api/admin",json({entity:"role",name:"账号发布人员",permissions:[]}),201);
+await req("/api/admin",json({entity:"user",username:"v30_pub1",displayName:"发布甲",password:"V30-Test-2026!",roleId:publisherRole.id,accountResponsibilities:{publishing:[account.id]}}),201);
+await req("/api/admin",json({entity:"user",username:"v30_pub2",displayName:"发布乙",password:"V30-Test-2026!",roleId:publisherRole.id,accountResponsibilities:{publishing:[account.id]}}),201);
+await req("/api/auth/login",json({username:"v30_pub1",password:"V30-Test-2026!"}));const pub1Cookie=cookie;
+const pool1=await req("/api/publishing"),publishRow=pool1.contents.find(item=>item.code===content.contentCode),assignment=publishRow.assignments[0];assert.equal(assignment.handlerUserId,null);
+await req(`/api/publishing/${content.contentCode}`,json({action:"start",assignmentId:assignment.id,expectedVersion:assignment.rowVersion},"PATCH"));
+await req("/api/auth/login",json({username:"v30_pub2",password:"V30-Test-2026!"}));const pub2Cookie=cookie;
+await req(`/api/publishing/${content.contentCode}`,json({action:"start",assignmentId:assignment.id,expectedVersion:assignment.rowVersion},"PATCH"),409);
+const viewed=await req("/api/publishing");assert.ok(viewed.contents.find(item=>item.code===content.contentCode).assignments[0].handlerUserId,"second publisher can view the locked account item");
+cookie=pub1Cookie;const owned=(await req("/api/publishing")).contents.find(item=>item.code===content.contentCode).assignments[0];
+await req(`/api/publishing/${content.contentCode}/platforms/${platform.code}`,json({published:true,expectedVersion:owned.rowVersion},"PATCH"));
+const zipResponse=await fetch(base+"/api/publishing/download",{method:"POST",headers:{cookie:pub1Cookie,"content-type":"application/json"},body:JSON.stringify({codes:[content.contentCode]})});assert.equal(zipResponse.status,200);const zipBytes=new Uint8Array(await zipResponse.arrayBuffer());assert.deepEqual([...zipBytes.slice(0,4)],[0x50,0x4b,0x03,0x04]);assert.ok(zipBytes.length>media.length);
+cookie=pub2Cookie;await req(`/api/publishing/${content.contentCode}/platforms/${platform.code}`,json({published:false,expectedVersion:owned.rowVersion},"PATCH"),409);
+cookie=adminCookie;const renamed=await req("/api/product-masters",json({id:inlineProduct.id,name:"修改后的产品名称",imageType:"image/png"},"PATCH"));assert.ok(renamed.imageUploadUrl);await req(renamed.imageUploadUrl,{method:"PUT",headers:{"content-type":"image/png"},body:productImage});await req(`/api/product-masters?id=${inlineProduct.id}`,{method:"DELETE"});assert.ok(!(await req("/api/product-masters")).items.some(item=>item.id===inlineProduct.id));assert.equal((await req(`/api/material-sets/${created.id}`)).productName,"修改后的产品名称");
+console.log(JSON.stringify({ok:true,legacySafe:true,inlineProductCreate:true,productEditDelete:true,materialFlow:true,transactionalEditCancel:true,requiredResubmissionNote:true,accountGroupScope:true,claimOnlyVisibility:true,personalViewedState:true,autoClaimOnDownload:true,materialRecycleBin:true,claimOnlyDirectFileIsolation:true,claimDownloadZip:true,publishingAtomicLock:true,publishingBatchZip:true,uploaderId:uploader.id,rowVersion:owned.rowVersion}));

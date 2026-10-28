@@ -1,0 +1,7 @@
+CREATE TABLE `report_templates` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,`name` text NOT NULL,`code` text NOT NULL,`description` text NOT NULL DEFAULT '',`fields_json` text NOT NULL DEFAULT '[]',`active` integer NOT NULL DEFAULT 1,`created_by_user_id` integer NOT NULL REFERENCES `users`(`id`),`created_at` text NOT NULL DEFAULT CURRENT_TIMESTAMP,`updated_at` text NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX `idx_report_templates_name` ON `report_templates` (`name`);
+CREATE UNIQUE INDEX `idx_report_templates_code` ON `report_templates` (`code`);
+CREATE TABLE `report_template_assignments` (`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,`template_id` integer NOT NULL REFERENCES `report_templates`(`id`),`user_id` integer NOT NULL REFERENCES `users`(`id`),`reminder_time` text,`reminder_enabled` integer NOT NULL DEFAULT 0,`created_at` text NOT NULL DEFAULT CURRENT_TIMESTAMP,`updated_at` text NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX `idx_report_template_assignment` ON `report_template_assignments` (`template_id`,`user_id`);
+CREATE INDEX `idx_report_template_user` ON `report_template_assignments` (`user_id`);
+INSERT INTO `report_templates` (`name`,`code`,`description`,`fields_json`,`created_by_user_id`) SELECT '日报','RPT-DAILY','每日工作完成与明日计划','[{"key":"completed","label":"今日完成的工作","type":"richtext","required":true},{"key":"plan","label":"明日工作计划","type":"richtext","required":true},{"key":"remark","label":"备注","type":"textarea","required":false}]',`id` FROM `users` ORDER BY `id` LIMIT 1;

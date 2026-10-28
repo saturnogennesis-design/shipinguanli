@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+const base=process.env.ORBIT_E2E_BASE_URL;if(!base)throw Error("Requires isolated test server");
+let cookie="";
+async function req(path,body,status=200,method="POST"){const r=await fetch(base+path,{method:body?method:"GET",headers:{cookie,"content-type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});const t=r.headers.get("set-cookie");if(t)cookie=t.split(";")[0];const raw=await r.text();assert.equal(r.status,status,path+" "+raw);return JSON.parse(raw);}
+await req("/api/setup",{username:"qa_admin",displayName:"测试管理员",password:"ReportQa-2026!"},201);
+const admin=cookie;
+const role=await req("/api/admin",{entity:"role",name:"报备测试",dataScope:"self",permissions:["report.create","report.receive","report.cc"]},201);
+const accounts=[];
+for(const name of ["alice","bob","carol","dave","eve"]){const u=await req("/api/admin",{entity:"user",username:"qa_"+name,displayName:name,password:"ReportQa-2026!",roleId:role.id},201);accounts.push(u);}
+let templates=await req("/api/report-templates");
+assert.ok(templates.templates.length,"fixed template must exist on fresh install");
+await req("/api/report-templates",{action:"assign",id:templates.templates[0].id,userIds:accounts.map(x=>x.id)} ,200,"PATCH");
+const sessions=[];
+for(const name of ["alice","bob","carol","dave","eve"]){await req("/api/auth/login",{username:"qa_"+name,password:"ReportQa-2026!"});sessions.push(cookie);}
+const [a,b,c,d,e]=accounts;cookie=sessions[0];
+const draft=(await req("/api/reports",{action:"draft",completed:"1. 工作",plan:"1. 计划",recipientUserId:b.id},201)).report;
+cookie=sessions[1];assert.equal((await req("/api/reports")).reports.length,0,"recipient cannot see drafts");
+await req("/api/reports/"+draft.id,undefined,403);
+cookie=sessions[0];await req("/api/reports/"+draft.id,{action:"submit",completed:"1. 工作",plan:"1. 计划",recipientUserId:b.id},200,"PATCH");
+await req("/api/reports/"+draft.id,{action:"draft",completed:"篡改"},409,"PATCH");
+await req("/api/reports/"+draft.id,{userIds:[c.id],remark:"A给C"});
+cookie=sessions[1];await req("/api/reports/"+draft.id,{userIds:[d.id],remark:"B给D"});
+cookie=sessions[0];let list=await req("/api/reports");assert.equal(list.reports.length,1);assert.equal(list.cc.length,1);assert.equal(list.cc[0].toUserId,c.id);assert.equal(list.reports[0].readAt,null);
+const acc=list.cc[0];assert.equal(acc.path.length,2);
+cookie=sessions[1];list=await req("/api/reports");assert.equal(list.cc.length,1);assert.equal(list.cc[0].toUserId,d.id);assert.equal(list.cc[0].path.length,3);
+const bcc=list.cc[0];
+cookie=sessions[2];list=await req("/api/reports");assert.equal(list.reports.length,0);assert.equal(list.cc.length,1);
+await req("/api/reports/"+draft.id+"?ccId="+bcc.ccId,undefined,403);
+await req("/api/reports/"+draft.id+"?ccId="+acc.ccId);
+const first=(await req("/api/reports")).cc[0].readAt;assert.ok(first);
+await req("/api/reports/"+draft.id+"?ccId="+acc.ccId);assert.equal((await req("/api/reports")).cc[0].readAt,first);
+await req("/api/reports/"+draft.id,{userIds:[e.id]},403);
+cookie=sessions[0];list=await req("/api/reports");assert.equal(list.reports[0].readAt,null,"CC read must not mark original read");
+await req("/api/reports/"+draft.id,{userIds:[c.id]},409);
+const options=await req("/api/reports/"+draft.id,{action:"options"});assert.ok(options.users.find(x=>x.id===c.id).disabled);
+await req("/api/reports/"+draft.id,{userIds:[e.id],remark:"第二次备注"});
+list=await req("/api/reports");assert.equal(list.cc.length,2);assert.equal(list.cc.find(x=>x.toUserId===e.id).remark,"第二次备注");
+await req("/api/reports",{key:acc.key,action:"hide"});
+assert.equal((await req("/api/reports")).cc.find(x=>x.key===acc.key).hidden,true);
+assert.equal((await req("/api/reports")).reports[0].hidden,false);
+cookie=sessions[2];assert.equal((await req("/api/reports")).cc[0].hidden,false);
+cookie=sessions[1];await req("/api/reports/"+draft.id);
+cookie=sessions[0];assert.ok((await req("/api/reports")).reports[0].readAt);
+console.log("PASS: draft isolation, independent tabs, direct/two-edge paths, CC privacy, non-forwarding, duplicate prevention, independent read-once state, multiple remarks and per-relation hiding");

@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+const base=process.env.ORBIT_E2E_BASE_URL;if(!base)throw Error("Requires isolated test server");
+let cookie="";
+async function req(path,body,status=200,method="POST",headers={"content-type":"application/json"}){const r=await fetch(base+path,{method:body===undefined?"GET":method,headers:{cookie,...headers},...(body!==undefined?{body:headers["content-type"]?.includes("json")?JSON.stringify(body):body}:{})});const t=r.headers.get("set-cookie");if(t)cookie=t.split(";")[0];const raw=await r.text();assert.equal(r.status,status,path+" "+raw);return raw?JSON.parse(raw):null;}
+await req("/api/setup",{username:"spoken_admin",displayName:"管理员",password:"SpokenQa-2026!"},201);
+const role=await req("/api/admin",{entity:"role",name:"口播测试",dataScope:"self",permissions:["report.create","report.receive","report.cc","report.template_manage","business.product_masters","asset.view"]},201);
+const submitter=await req("/api/admin",{entity:"user",username:"spoken_a",displayName:"甲",password:"SpokenQa-2026!",roleId:role.id},201);
+const recipient=await req("/api/admin",{entity:"user",username:"spoken_b",displayName:"乙",password:"SpokenQa-2026!",roleId:role.id},201);
+const camera=await req("/api/admin",{entity:"user",username:"spoken_c",displayName:"丙",password:"SpokenQa-2026!",roleId:role.id},201);
+const product=await req("/api/product-masters",{name:"测试商品",imageType:"image/png"},201);
+await req(`/api/product-masters/${product.id}/image`,new Uint8Array([137,80,78,71]),200,"PUT",{"content-type":"image/png"});
+let templates=await req("/api/report-templates");const spoken=templates.templates.find(x=>x.code==="RPT-SPOKEN-COPY");assert.ok(spoken);
+await req("/api/report-templates",{action:"assign",id:spoken.id,userIds:[submitter.id]},200,"PATCH");
+await req("/api/auth/login",{username:"spoken_a",password:"SpokenQa-2026!"});
+let created=(await req("/api/reports",{templateCode:"RPT-SPOKEN-COPY",action:"draft",completed:"1. 初稿",remark:"备注",productMasterId:product.id,recipientUserId:recipient.id},201)).report;
+await req(`/api/reports/${created.id}`,{action:"submit",completed:"1. 初稿",remark:"备注",productMasterId:product.id,recipientUserId:recipient.id},200,"PATCH");
+await req("/api/auth/login",{username:"spoken_b",password:"SpokenQa-2026!"});
+await req(`/api/reports/${created.id}`,{action:"submit",completed:"1. 修改后的文案",remark:"新备注",productMasterId:product.id},200,"PATCH");
+const detail=await req(`/api/reports/${created.id}?markRead=0`);assert.equal(detail.report.recipientUserId,recipient.id);assert.equal(detail.report.completed,"1. 修改后的文案");assert.ok(detail.report.logs.some(x=>x.action==="edit_copy"));
+const form=new FormData();form.append("file",new File([new Uint8Array([1,2,3])],"示例.png",{type:"image/png"}));const attachment=await req(`/api/reports/${created.id}/attachments`,form,201,"POST",{});assert.equal(attachment.fileName,"示例.png");
+const detailWithImage=await req(`/api/reports/${created.id}?markRead=0`);assert.equal(detailWithImage.report.attachments.length,1);
+await req(`/api/reports/${created.id}`,{userIds:[camera.id],remark:"给拍摄"},200);
+console.log("PASS: spoken template, product, recipient overwrite, attachments, CC and activity log");

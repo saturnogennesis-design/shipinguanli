@@ -1,0 +1,32 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {DatabaseSync} from "node:sqlite";
+import {readFileSync,readdirSync} from "node:fs";
+
+test("V3.0 migration preserves legacy media and infers only unambiguous group accounts",()=>{
+ const db=new DatabaseSync(":memory:"),dir=new URL("../drizzle/",import.meta.url);
+ for(const name of readdirSync(dir).filter(name=>/^\d+.*\.sql$/.test(name)&&name<"0019").sort())db.exec(readFileSync(new URL(name,dir),"utf8"));
+ const role=db.prepare("INSERT INTO roles(code,name,data_scope,permissions_json) VALUES('v30_role','V30','self','[\"asset.view\",\"asset.upload\"]') RETURNING id").get();
+ const user=db.prepare("INSERT INTO users(username,display_name,password_hash,role_id,must_change_password) VALUES('v30_user','V30用户','x',?,0) RETURNING id").get(role.id);
+ const platform=db.prepare("INSERT INTO platforms(code,name) VALUES('v30','V30平台') RETURNING id").get();
+ const account=db.prepare("INSERT INTO short_video_accounts(platform_id,code,name) VALUES(?,'v30_account','V30账号') RETURNING id").get(platform.id);
+ const group=db.prepare("SELECT id FROM content_groups ORDER BY id LIMIT 1").get();
+ db.prepare("INSERT INTO contents(code,title,content_type,account_id,group_id,uploader_user_id) VALUES('V30-CONTENT','迁移内容','video',?,?,?)").run(account.id,group.id,user.id);
+ const legacy=db.prepare("INSERT INTO materials(title,description,owner_user_id,audience_json,downloadable,file_name,mime_type,file_size,storage_path,upload_status) VALUES('旧素材','保留原路径',?,'[]',0,'legacy.mp4','video/mp4',123,'materials/existing-object','complete') RETURNING id").get(user.id);
+ db.exec(readFileSync(new URL("0019_v30_account_material_centers.sql",dir),"utf8"));
+ assert.equal(db.prepare("SELECT account_id FROM content_groups WHERE id=?").get(group.id).account_id,account.id);
+ const wrapped=db.prepare("SELECT * FROM material_sets WHERE legacy_material_id=?").get(legacy.id);
+ assert.equal(wrapped.status,"needs_classification");
+ assert.equal(db.prepare("SELECT storage_path FROM material_files WHERE set_id=?").get(wrapped.id).storage_path,"materials/existing-object");
+ assert.ok(db.prepare("SELECT 1 FROM user_account_responsibilities WHERE user_id=? AND account_id=? AND responsibility_type='material'").get(user.id,account.id));
+ const publishColumns=db.prepare("PRAGMA table_info(platform_contents)").all().map(row=>row.name);
+ assert.ok(publishColumns.includes("handler_user_id")&&publishColumns.includes("row_version"));
+ const approved=db.prepare("INSERT INTO contents(code,title,content_type,group_id,uploader_user_id,review_status) VALUES('V30-APPROVED','旧审核通过内容','video',?,?,'approved') RETURNING id").get(group.id,user.id);
+ db.prepare("INSERT INTO content_versions(content_id,version_number,file_name,storage_path,mime_type,file_size,uploaded_by_user_id,upload_status,review_status) VALUES(?,1,'approved.mp4','contents/approved.mp4','video/mp4',456,?,'complete','approved')").run(approved.id,user.id);
+ db.exec(readFileSync(new URL("0020_repair_approved_publishing.sql",dir),"utf8"));
+ assert.equal(db.prepare("SELECT account_id FROM contents WHERE id=?").get(approved.id).account_id,account.id);
+ const repairedPublishing=db.prepare("SELECT account_id,publish_status FROM platform_contents WHERE source_content_id=?").get(approved.id);
+ assert.equal(repairedPublishing.account_id,account.id);
+ assert.equal(repairedPublishing.publish_status,"pending");
+ db.close();
+});
