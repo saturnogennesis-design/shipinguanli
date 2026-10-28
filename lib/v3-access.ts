@@ -14,12 +14,12 @@ export type GroupResponsibility = "member" | "leader" | "content_review";
 
 export async function responsibleAccountIds(user: AuthUser, types: AccountResponsibility[]) {
   if (user.roleCode === "super_admin") {
-    const rows = await getDb().select({ id: shortVideoAccounts.id }).from(shortVideoAccounts).where(eq(shortVideoAccounts.status, "active"));
+    const rows = await getDb().select({ id: shortVideoAccounts.id }).from(shortVideoAccounts).where(and(eq(shortVideoAccounts.status, "active"),user.projectId?eq(shortVideoAccounts.id,user.projectId):undefined));
     return rows.map((row) => row.id);
   }
   const rows = await getDb().select({ accountId: userAccountResponsibilities.accountId })
     .from(userAccountResponsibilities)
-    .where(and(eq(userAccountResponsibilities.userId, user.id), inArray(userAccountResponsibilities.responsibilityType, types)));
+    .where(and(eq(userAccountResponsibilities.userId, user.id), inArray(userAccountResponsibilities.responsibilityType, types),user.projectId?eq(userAccountResponsibilities.accountId,user.projectId):undefined));
   return [...new Set(rows.map((row) => row.accountId))];
 }
 
@@ -28,7 +28,7 @@ export async function memberAccountIds(user: AuthUser) {
   const rows = await getDb().select({ accountId: contentGroups.accountId })
     .from(groupMemberships)
     .innerJoin(contentGroups, eq(contentGroups.id, groupMemberships.groupId))
-    .where(and(eq(groupMemberships.userId, user.id), eq(contentGroups.status, "active")));
+    .where(and(eq(groupMemberships.userId, user.id), eq(contentGroups.status, "active"),user.projectId?eq(contentGroups.accountId,user.projectId):undefined));
   return [...new Set(rows.map((row) => row.accountId).filter((id): id is number => id !== null))];
 }
 
@@ -48,7 +48,7 @@ export async function publishingAccountIds(user: AuthUser) {
 
 export async function responsibleGroupIds(user: AuthUser, types: GroupResponsibility[]) {
   if (user.roleCode === "super_admin") {
-    const rows = await getDb().select({ id: contentGroups.id }).from(contentGroups).where(eq(contentGroups.status, "active"));
+    const rows = await getDb().select({ id: contentGroups.id }).from(contentGroups).where(and(eq(contentGroups.status, "active"),user.projectId?eq(contentGroups.accountId,user.projectId):undefined));
     return rows.map((row) => row.id);
   }
   const [responsible, member] = await Promise.all([

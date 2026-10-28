@@ -1,4 +1,5 @@
 "use client";
+import {currentProjectMediaUrl} from "@/lib/client-project-fetch";
 import {useEffect,useLayoutEffect,useRef,useState} from "react";
 import {createPortal} from "react-dom";
 
@@ -50,7 +51,7 @@ export function ContentPreview({code,versionId,title,kind,comment="",label="",su
   const activate=()=>{hold();setHover(false);if(onOpen)onOpen();else setOpen(true);};
   useEffect(()=>{const target=root.current;if(!target||!hoverEnabled)return;const enter=()=>{hold();timer.current=setTimeout(()=>setHover(true),250);};target.addEventListener("mouseenter",enter);target.addEventListener("mouseleave",leave);return()=>{target.removeEventListener("mouseenter",enter);target.removeEventListener("mouseleave",leave);hold();};},[hoverEnabled]);
   useLayoutEffect(()=>{if(!hover)return;const place=()=>{const anchor=root.current?.getBoundingClientRect(),box=popup.current;if(!anchor||!box)return;const w=box.offsetWidth,h=box.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;let left=anchor.right+8;if(left+w>vw-8)left=anchor.left-w-8;if(left<8)left=Math.max(8,Math.min(anchor.left,vw-w-8));setPosition({left,top:Math.max(8,Math.min(anchor.top,vh-h-8))});};place();const observer=new ResizeObserver(place);if(popup.current)observer.observe(popup.current);window.addEventListener("resize",place);window.addEventListener("scroll",place,true);return()=>{observer.disconnect();window.removeEventListener("resize",place);window.removeEventListener("scroll",place,true);};},[hover]);
-  const cover=versionId?`/api/content-versions/${versionId}/cover?t=${coverTick}`:"";
+  const cover=versionId?currentProjectMediaUrl(`/api/content-versions/${versionId}/cover?t=${coverTick}`):"";
   useEffect(()=>{setFailed(false);},[versionId]);
   useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
   useEffect(()=>{

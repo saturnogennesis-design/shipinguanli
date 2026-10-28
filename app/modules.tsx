@@ -411,6 +411,8 @@ export function RuleFilterBar<T>({
 }
 
 type UnifiedContent = {
+  categoryId?:number|null;
+  categoryName?:string|null;
   id: string;
   title: string;
   kind: string;
@@ -884,7 +886,7 @@ function ContentDetailPanel({
                 {productControl ?? <strong className="detail-product-value"><ProductImage url={item.productImageUrl} name={item.product}/>{item.product || "未分配"}</strong>}
               </label>
               <label>
-                <span>所属账号</span>
+                <span>所属项目</span>
                 <strong>{item.account || "未分配"}</strong>
               </label>
               <label>
@@ -1092,7 +1094,7 @@ function ContentRecycleBin({
     { key: "owner", label: "上传员工", type: "select", options: owners.map((value) => ({ value, label: value })), getValue: (item) => item.uploaderName },
     { key: "reviewStatus", label: "删除前状态", type: "select", options: [{value:"draft",label:"草稿"},{value:"pending",label:"待审核"},{value:"reviewing",label:"审核中"},{value:"approved",label:"已通过"},{value:"rejected",label:"已驳回"}], getValue: (item) => item.trashPreviousStatus ?? item.reviewStatus },
     { key: "product", label: "关联商品", type: "select", options: recycleProductOptions.map((value) => ({ value, label: value })), getValue: (item) => item.productName ?? "未分配" },
-    { key: "account", label: "所属账号", type: "text", getValue: (item) => item.accountName },
+    { key: "account", label: "所属项目", type: "text", getValue: (item) => item.accountName },
     { key: "version", label: "版本", type: "number", getValue: (item) => item.latestVersionNumber },
     { key: "createdAt", label: "上传时间", type: "date", getValue: (item) => item.createdAt },
     { key: "deletedAt", label: "删除时间", type: "date", getValue: (item) => item.deletedAt },
@@ -1236,7 +1238,7 @@ function ContentRecycleBin({
                 <th>内容</th>
                 <th>删除前状态</th>
                 <th>关联商品</th>
-                <th>所属账号</th>
+                <th>所属项目</th>
                 <th>上传人</th>
                 <th>版本</th>
                 <th>上传时间</th>
@@ -1372,6 +1374,9 @@ function ContentPool({
   const [contentGroups,setContentGroups]=useState<Array<{id:number;name:string;code:string;accountId:number|null;accountName:string|null;themeColor:string|null;coverPath:string|null;canView?:boolean;canUpload?:boolean}>>([]);
   const [groupScope,setGroupScope]=useState("mine");
   const [uploadGroupId,setUploadGroupId]=useState("");
+  const [categories,setCategories]=useState<Array<{id:number;name:string;status:string}>>([]);
+  const [uploadCategoryId,setUploadCategoryId]=useState("");
+  useEffect(()=>{void fetch('/api/content-categories').then(response=>response.json()).then(data=>setCategories(data.items??[]));},[]);
   const scrollPositions=useRef<Record<number,number>>({});
   const boardCan=(permission:string)=>permissionGranted(boardPermissions,permission);
   useEffect(()=>{void fetch("/api/auth/me",{cache:"no-store"}).then(r=>r.json()).then(({user})=>{
@@ -1480,11 +1485,12 @@ function ContentPool({
   const contentFilterFields = useMemo<SmartFilterField<UnifiedContent>[]>(() => [
     { key: "query", label: "关键词", type: "text", getValue: (row) => [row.title, row.id, row.product, row.account, row.owner] },
     { key: "reviewStatus", label: "审核状态", type: "select", options: ["草稿", "待审核", "审核中", "已通过", "已驳回"].map((label) => ({ value: label, label })), getValue: (row) => row.status },
-    { key: "contentType", label: "内容类型", type: "select", options: ["视频", "图文"].map((label) => ({ value: label, label })), getValue: (row) => row.kind },
+    { key: "categoryId", label: "业务分类", type: "select", options: categories.map(category=>({value:String(category.id),label:category.name})), getValue: (row) => String(row.categoryId??"") },
+    { key: "contentType", label: "文件格式", type: "select", options: ["视频", "图文"].map((label) => ({ value: label, label })), getValue: (row) => row.kind },
     { key: "owner", label: "上传员工", type: "select", options: [...new Set(rows.map((row) => row.owner))].map((label) => ({ value: label, label })), getValue: (row) => row.owner },
     { key: "group", label: "内容小组", type: "select", options: [...new Set(rows.map((row) => row.groupName).filter(Boolean))].map((label) => ({ value: String(label), label: String(label) })), getValue: (row) => row.groupName??"未分组" },
     { key: "product", label: "关联商品", type: "select", options: [...new Set(rows.map((row) => row.product))].map((label) => ({ value: label, label })), getValue: (row) => row.product },
-    { key: "account", label: "所属账号", type: "select", options: [...new Set(rows.map((row) => row.account))].map((label) => ({ value: label, label })), getValue: (row) => row.account },
+    { key: "account", label: "所属项目", type: "select", options: [...new Set(rows.map((row) => row.account))].map((label) => ({ value: label, label })), getValue: (row) => row.account },
     { key: "visibility", label: "可见范围", type: "select", options: ["仅本人和管理员", "全部可见"].map((label) => ({ value: label, label })), getValue: (row) => row.visibility },
     { key: "recommended", label: "推荐案例", type: "select", options: [{ value: "是", label: "是" }, { value: "否", label: "否" }], getValue: (row) => row.featured ? "是" : "否" },
     { key: "createdAt", label: "上传时间", type: "date", getValue: (row) => row.createdAt ?? row.time },
@@ -1492,7 +1498,7 @@ function ContentPool({
     { key: "duration", label: "视频时长", type: "number", getValue: (row) => row.durationSeconds ?? 0 },
     { key: "imageCount", label: "图片数量", type: "number", getValue: (row) => row.imageCount ?? 0 },
     { key: "version", label: "版本", type: "text", getValue: (row) => row.version },
-  ], [rows]);
+  ], [rows,categories]);
   const filteredRows = rows; // Server applies rules before per-lane pagination.
   const totalPages = Math.max(1, pagination.totalPages);
   const visibleRows = filteredRows;
@@ -1735,6 +1741,7 @@ function ContentPool({
         durationSeconds: row.durationSeconds,
       }));
       const common = {
+        categoryId:Number(uploadCategoryId)||null,
         productMasterId: Number(product) || null,
         productId: null,
         accountId: Number(account) || null,
@@ -2500,7 +2507,7 @@ function ContentPool({
                 <RuleFilterBar moduleKey="contents" fields={contentFilterFields} rules={smartRules} onChange={setSmartRules} view={{sort:boardSort,group:"status"}} onViewChange={view=>setBoardSort(view.sort??"default")}/>
                 <div className="expanded-content-list"><table><thead><tr><th><input type="checkbox" aria-label="选择当前页全部内容" checked={laneRows.length>0&&laneRows.every(row=>selectedIds.includes(row.id))} onChange={event=>setSelectedIds(event.target.checked?[...new Set([...selectedIds,...laneRows.map(row=>row.id)])]:selectedIds.filter(id=>!laneRows.some(row=>row.id===id)))}/></th><th>状态</th><th>内容</th><th>上传人</th><th>商品</th><th>版本</th><th>时长 / 张数</th><th>文件大小</th><th>上传时间</th><th>审核评语</th></tr></thead><tbody>{laneRows.map(row=><tr key={row.id} style={{backgroundColor:employeeColor(row.uploaderUserId??row.owner,row.contentColor)}}>
                   <td><input aria-label={`选择${row.title}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={e=>setSelectedIds(e.target.checked?[...selectedIds,row.id]:selectedIds.filter(id=>id!==row.id))}/></td><td>{row.status}</td>
-                  <td><div className="expanded-content-title"><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} onOpen={()=>openDetail(row.id,"view")}/><button className="content-detail-link" onClick={()=>openDetail(row.id,"view")}>{row.title}</button></div></td><td>{row.owner}</td><td><span className="expanded-product-cell"><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product}</span></span></td><td>{row.version}</td><td>{row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`}</td><td>{formatBytes(row.fileSize??0)}</td><td>{row.time}</td><td className="expanded-review">{row.reviewComment||row.rejectionReason||"—"}</td>
+                  <td><div className="expanded-content-title"><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} onOpen={()=>openDetail(row.id,"view")}/><button className="content-detail-link" onClick={()=>openDetail(row.id,"view")}>{row.title}</button>{row.categoryName?<small>{row.categoryName}</small>:null}</div></td><td>{row.owner}</td><td><span className="expanded-product-cell"><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product}</span></span></td><td>{row.version}</td><td>{row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`}</td><td>{formatBytes(row.fileSize??0)}</td><td>{row.time}</td><td className="expanded-review">{row.reviewComment||row.rejectionReason||"—"}</td>
                 </tr>)}</tbody></table>{!laneRows.length?<div className="empty-state">暂无符合条件的内容</div>:null}</div>{pager}
                 {selectedIds.length?<footer><span>已选{selectedIds.length}条</span>{boardCan("content.update")&&selected.some(row=>row.status==="草稿")?<><button onClick={()=>{setBatchValue("");setBatchModal("rename");}}>批量改名称</button><button onClick={()=>{setBatchValue("");setBatchModal("remark");}}>批量写备注</button></>:null}{boardCan("content.submit")?<button onClick={submitDrafts}>提交草稿</button>:null}{boardCan("content.withdraw")?<button onClick={withdraw}>批量撤回审核</button>:null}{boardCan("content.archive")?<button onClick={()=>void archiveSelected()}>{archivedView?"恢复所选":"归档所选"}</button>:null}{boardCan("content.delete")?<button onClick={deleteSelected}>移入回收站</button>:null}<button onClick={()=>setSelectedIds([])}>取消选择</button></footer>:null}
               </CenterDialog>:null}
@@ -2590,7 +2597,7 @@ function ContentPool({
                   </div>
                 </label>
                 <label>
-                  <span>所属账号 *</span>
+                  <span>所属项目 *</span>
                   <select
                     value={account}
                     disabled
@@ -2606,6 +2613,7 @@ function ContentPool({
                       ))}
                   </select>
                 </label>
+                <label><span>业务分类</span><select value={uploadCategoryId} onChange={event=>setUploadCategoryId(event.target.value)}><option value="">未分类</option>{categories.filter(category=>category.status==="active").map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 <label><span>内容归属小组 *</span><select value={uploadGroupId} onChange={event=>{const group=contentGroups.find(item=>String(item.id)===event.target.value);setUploadGroupId(event.target.value);setAccount(String(group?.accountId??""));}}><option value="">请选择小组</option>{contentGroups.filter(item=>item.canUpload&&item.accountId).map(item=><option value={item.id} key={item.id}>{item.accountName}｜{item.name}</option>)}</select><small>账号由小组自动确定；创建后不可更换，后续版本沿用。</small></label>
                 <label>
                   <span>可见范围</span>
@@ -4877,7 +4885,7 @@ function PublishManagement({
                             ))}
                             {!accounts.length && (
                               <small>
-                                该平台暂无可用账号，请先到短视频账号管理中创建。
+                                该平台暂无可用账号，请先到项目管理中创建。
                               </small>
                             )}
                             <button
@@ -5943,7 +5951,7 @@ function DrilldownContentList({
     { key: "query", label: "内容/编号", type: "text", getValue: (item) => [item.title, item.id] },
     { key: "product", label: "关联商品", type: "select", options: [...new Set(rows.map((item) => item.product))].map((value) => ({ value, label: value })), getValue: (item) => item.product },
     { key: "productCode", label: "商品编号", type: "select", options: productOptions.map(([value, name]) => ({ value, label: `${name} · ${value}` })), getValue: (item) => item.productCode },
-    { key: "account", label: "短视频账号", type: "select", options: [...new Set(rows.map((item) => item.account))].map((value) => ({ value, label: value })), getValue: (item) => item.account },
+    { key: "account", label: "项目", type: "select", options: [...new Set(rows.map((item) => item.account))].map((value) => ({ value, label: value })), getValue: (item) => item.account },
     { key: "platform", label: "平台", type: "select", options: [...new Set(rows.map((item) => item.platform))].map((value) => ({ value, label: value })), getValue: (item) => item.platform },
     { key: "shop", label: "店铺", type: "select", options: [...new Set(rows.map((item) => item.shop))].map((value) => ({ value, label: value })), getValue: (item) => item.shop },
     { key: "contentType", label: "内容类型", type: "select", options: ["视频", "图文"].map((value) => ({ value, label: value })), getValue: (item) => item.kind },
@@ -6009,7 +6017,7 @@ function DrilldownContentList({
               <tr>
                 <th>内容</th>
                 <th>关联商品</th>
-                <th>短视频账号</th>
+                <th>项目</th>
                 <th>平台 / 店铺</th>
                 <th>类型 / 版本</th>
                 <th>发布时间</th>
@@ -6167,7 +6175,7 @@ function BusinessCreateModal({
           ? "业务资料已更新"
           : isProduct
             ? "商品已保存，可在发布管理中关联"
-            : "短视频账号及商品绑定已保存",
+            : "项目及商品绑定已保存",
       );
       onClose();
     } catch (reason) {
@@ -6186,7 +6194,7 @@ function BusinessCreateModal({
           <div>
             <small>业务资料</small>
             <h3>
-              {initial ? "编辑" : isProduct ? "新建商品" : "新建短视频账号"}
+              {initial ? "编辑" : isProduct ? "新建商品" : "新建项目"}
             </h3>
           </div>
           <small className="drawer-exit-hint">请使用底部“取消”或“保存”</small>
@@ -6694,7 +6702,7 @@ function AccountManagement({
   return (
     <>
       <ModuleHeader
-        title="短视频账号"
+        title="项目"
         description="绑定商品和发布内容只统计已完成发布的内容，不包含等待发布记录。"
         action="新建账号"
         onAction={() => setEditor("new")}
@@ -6794,7 +6802,7 @@ function AccountManagement({
           </article>
         ))}
         {!visibleAccounts.length && (
-          <div className="empty-state">没有符合条件的短视频账号</div>
+          <div className="empty-state">没有符合条件的项目</div>
         )}
       </div>
       {editor && (
@@ -6870,7 +6878,7 @@ function PlatformStores({
     { key: "platform", label: "平台名称", type: "select", options: platforms.map((item) => ({ value: item.name, label: item.name })), getValue: (item) => item.platform },
     { key: "platformCode", label: "平台编号", type: "text", getValue: (item) => item.platformCode },
     { key: "platformStatus", label: "平台状态", type: "select", options: ["启用", "停用"].map((value) => ({ value, label: value })), getValue: (item) => item.platformStatus },
-    { key: "accountCount", label: "短视频账号数", type: "number", getValue: (item) => item.accountCount },
+    { key: "accountCount", label: "项目数", type: "number", getValue: (item) => item.accountCount },
     { key: "storeCount", label: "店铺数", type: "number", getValue: (item) => item.storeCount },
     { key: "store", label: "店铺名称", type: "select", options: stores.map((item) => ({ value: item.name, label: item.name })), getValue: (item) => item.store },
     { key: "storeCode", label: "店铺编号", type: "text", getValue: (item) => item.storeCode },
@@ -7161,7 +7169,7 @@ function PlatformStores({
                   </div>
                   <p>
                     显示顺序 {index + 1} · {platformStores.length} 个店铺 ·{" "}
-                    {platform.accounts} 个短视频账号
+                    {platform.accounts} 个项目
                   </p>
                 </div>
                 <div className="platform-card-actions">
@@ -10056,7 +10064,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                   </>}
                 </>
               )}
-              {drawer==="group"&&<><label><span>小组名称 *</span><input value={groupDraft.name} onChange={event=>setGroupDraft({...groupDraft,name:event.target.value})}/></label><label><span>小组编号</span><input disabled={Boolean(groupDraft.id)} placeholder="留空自动生成" value={groupDraft.code} onChange={event=>setGroupDraft({...groupDraft,code:event.target.value})}/></label><label><span>所属短视频账号 *</span><select required value={groupDraft.accountId} onChange={event=>setGroupDraft({...groupDraft,accountId:event.target.value})}><option value="">请选择账号</option>{data.accounts.filter(item=>item.status==="active"||String(item.id)===groupDraft.accountId).map(item=><option value={item.id} key={item.id}>{item.platformName} · {item.name}</option>)}</select></label><label><span>所属部门</span><select value={groupDraft.departmentId} onChange={event=>setGroupDraft({...groupDraft,departmentId:event.target.value})}><option value="">未绑定</option>{data.departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>小组负责人（不自动获得审核权）</span><select value={groupDraft.leaderUserId} onChange={event=>setGroupDraft({...groupDraft,leaderUserId:event.target.value})}><option value="">未设置</option>{data.users.filter(item=>item.status==="active").map(item=><option value={item.id} key={item.id}>{item.displayName}</option>)}</select></label><label><span>识别颜色</span><input type="color" value={groupDraft.themeColor} onChange={event=>setGroupDraft({...groupDraft,themeColor:event.target.value})}/></label><label><span>业务方向</span><input value={groupDraft.businessDirection} onChange={event=>setGroupDraft({...groupDraft,businessDirection:event.target.value})}/></label><label><span>小组说明</span><textarea value={groupDraft.description} onChange={event=>setGroupDraft({...groupDraft,description:event.target.value})}/></label>{groupDraft.id&&<label><span>状态</span><select value={groupDraft.status} onChange={event=>setGroupDraft({...groupDraft,status:event.target.value})}><option value="active">启用</option><option value="inactive">停用</option></select></label>}</>}
+              {drawer==="group"&&<><label><span>小组名称 *</span><input value={groupDraft.name} onChange={event=>setGroupDraft({...groupDraft,name:event.target.value})}/></label><label><span>小组编号</span><input disabled={Boolean(groupDraft.id)} placeholder="留空自动生成" value={groupDraft.code} onChange={event=>setGroupDraft({...groupDraft,code:event.target.value})}/></label><label><span>所属项目 *</span><select required value={groupDraft.accountId} onChange={event=>setGroupDraft({...groupDraft,accountId:event.target.value})}><option value="">请选择账号</option>{data.accounts.filter(item=>item.status==="active"||String(item.id)===groupDraft.accountId).map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>所属部门</span><select value={groupDraft.departmentId} onChange={event=>setGroupDraft({...groupDraft,departmentId:event.target.value})}><option value="">未绑定</option>{data.departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>小组负责人（不自动获得审核权）</span><select value={groupDraft.leaderUserId} onChange={event=>setGroupDraft({...groupDraft,leaderUserId:event.target.value})}><option value="">未设置</option>{data.users.filter(item=>item.status==="active").map(item=><option value={item.id} key={item.id}>{item.displayName}</option>)}</select></label><label><span>识别颜色</span><input type="color" value={groupDraft.themeColor} onChange={event=>setGroupDraft({...groupDraft,themeColor:event.target.value})}/></label><label><span>业务方向</span><input value={groupDraft.businessDirection} onChange={event=>setGroupDraft({...groupDraft,businessDirection:event.target.value})}/></label><label><span>小组说明</span><textarea value={groupDraft.description} onChange={event=>setGroupDraft({...groupDraft,description:event.target.value})}/></label>{groupDraft.id&&<label><span>状态</span><select value={groupDraft.status} onChange={event=>setGroupDraft({...groupDraft,status:event.target.value})}><option value="active">启用</option><option value="inactive">停用</option></select></label>}</>}
               {drawer === "department" && (
                 <>
                   <label>
@@ -10804,6 +10812,7 @@ export function ModuleView({
         contentType: string;
         productId: number | null;
         productMasterId?: number | null;
+        categoryId?:number|null; categoryName?:string|null;
         productName: string | null;
         productImageUrl?: string | null;
         accountName: string | null;
@@ -10858,6 +10867,7 @@ export function ModuleView({
         product: item.productName ?? "未分配",
         productId: item.productId,
         productMasterId: item.productMasterId ?? null,
+        categoryId:item.categoryId,categoryName:item.categoryName,
         productImageUrl: item.productImageUrl ?? null,
         account: item.accountName ?? "未分配",
         owner: item.uploaderName,
@@ -10893,6 +10903,7 @@ export function ModuleView({
   };
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      if(name!=="内容池")return;
       void reloadContents();
       void reloadBusinessData();
     }, 0);
@@ -10987,7 +10998,7 @@ export function ModuleView({
           reload={reloadBusinessData}
         />
       )}
-      {name === "短视频账号" && (
+      {name === "项目" && (
         <AccountManagement
           notify={notify}
           data={businessData}

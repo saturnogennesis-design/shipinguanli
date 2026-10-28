@@ -32,14 +32,7 @@ export async function POST(request: Request) {
 
   const [department] = await db.insert(departments).values({ name: "公司" }).returning();
   const [role] = await db.insert(roles).values({ code: "super_admin", name: "超级管理员", dataScope: "company", permissionsJson: JSON.stringify(["*"]) }).returning();
-  const platformIds:number[]=[];
-  for (const platform of [
-    { code: "dy", name: "抖音", sortOrder: 1 },
-    { code: "ks", name: "快手", sortOrder: 2 },
-    { code: "xhs", name: "小红书", sortOrder: 3 },
-  ]) platformIds.push(await envDbInsertPlatform(platform));
-  let [defaultAccount]=await db.select().from(shortVideoAccounts).where(eq(shortVideoAccounts.code,"default_dy")).limit(1);
-  if(!defaultAccount)[defaultAccount]=await db.insert(shortVideoAccounts).values({platformId:platformIds[0],code:"default_dy",name:"默认短视频账号"}).returning();
+  const [defaultAccount]=await db.select().from(shortVideoAccounts).where(eq(shortVideoAccounts.status,"active")).limit(1);
   let [defaultGroup]=await db.select().from(contentGroups).where(eq(contentGroups.code,"legacy_default")).limit(1);
   if(!defaultGroup)[defaultGroup]=await db.insert(contentGroups).values({code:"default",name:"内容一组",accountId:defaultAccount.id,departmentId:department.id,description:"初始化默认内容小组"}).returning();
   else await db.update(contentGroups).set({name:defaultGroup.name?.trim()||"内容一组",accountId:defaultAccount.id,departmentId:department.id,updatedAt:new Date().toISOString()}).where(eq(contentGroups.id,defaultGroup.id));

@@ -5,7 +5,7 @@ import { hasPermission, type AuthUser } from "./server-auth";
 export const reportDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 export const reportAccess=(u:AuthUser)=>["report.create","report.receive","report.cc"].some(p=>hasPermission(u,p));
 export async function assigned(u:AuthUser){
- const db=getDb();const rows=await db.select({id:reportTemplates.id,name:reportTemplates.name,code:reportTemplates.code,fieldsJson:reportTemplates.fieldsJson}).from(reportTemplates).innerJoin(reportTemplateAssignments,eq(reportTemplateAssignments.templateId,reportTemplates.id)).where(and(eq(reportTemplateAssignments.userId,u.id),eq(reportTemplates.active,true)));
+ const db=getDb();const rows=await db.select({id:reportTemplates.id,name:reportTemplates.name,code:reportTemplates.code,fieldsJson:reportTemplates.fieldsJson}).from(reportTemplates).innerJoin(reportTemplateAssignments,eq(reportTemplateAssignments.templateId,reportTemplates.id)).where(and(eq(reportTemplateAssignments.userId,u.id),eq(reportTemplates.active,true),eq(reportTemplates.code,"RPT-DAILY")));
  return hasPermission(u,"report.create")?rows:[];
 }
 export async function people(u:AuthUser){
@@ -23,7 +23,7 @@ export async function reportLists(u:AuthUser){
    path:cc.fromUserId===report.recipientUserId?[{id:report.submitterUserId,name:submitterName},{id:cc.fromUserId,name:fromName??"历史抄送人"},{id:cc.userId,name:toName}]:[{id:cc.fromUserId,name:fromName??"历史抄送人"},{id:cc.userId,name:toName}],
    arrows:cc.fromUserId===report.recipientUserId?["提交","抄送"]:["抄送"]
  }));
- return {reports,cc};
+ return {reports:reports.filter((row:any)=>row.templateCode==="RPT-DAILY"),cc:cc.filter((row:any)=>row.templateCode==="RPT-DAILY")};
 }
 export async function validRecipient(id:number,u:AuthUser){
  if(!id||id===u.id)return false;

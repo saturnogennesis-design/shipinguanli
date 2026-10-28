@@ -15,8 +15,8 @@ test('daily attachments can only be edited by the authorized draft owner',()=>{
   assert.equal(canEditReportAttachments({...daily,status:'submitted'},creator),false);
   assert.equal(canEditReportAttachments({...daily,status:'submitted'},{id:2,canReceive:true,canCreate:true}),false);
 });
-test('spoken-copy images retain recipient editing and supported image formats',()=>{
-  assert.equal(canEditReportAttachments({...daily,status:'submitted',templateCode:'RPT-SPOKEN-COPY'},{id:2,canReceive:true,canCreate:false}),true);
+test('retired spoken-copy reports cannot accept attachment edits',()=>{
+  assert.equal(canEditReportAttachments({...daily,status:'submitted',templateCode:'RPT-SPOKEN-COPY'},{id:2,canReceive:true,canCreate:false}),false);
   assert.equal(reportFileType('image.png','RPT-SPOKEN-COPY').mimeType,'image/png');
   assert.equal(reportFileType('file.docx','RPT-SPOKEN-COPY'),null);
 });

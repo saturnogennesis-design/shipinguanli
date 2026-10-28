@@ -10,7 +10,7 @@ export async function GET(request:Request,context:Context){
  const [row]=await getDb().select().from(productMasters).where(eq(productMasters.id,Number((await context.params).id))).limit(1);
  if(!row?.imageStoragePath)return Response.json({error:"产品图片不存在"},{status:404});
  const object=await getMediaStore().get(row.imageStoragePath);if(!object)return Response.json({error:"产品图片文件不存在"},{status:404});
- const headers=new Headers({"cache-control":"private, max-age=300","x-content-type-options":"nosniff"});object.writeHttpMetadata(headers);return new Response(object.body,{headers});
+ const headers=new Headers({"cache-control":"private, no-store","x-content-type-options":"nosniff"});object.writeHttpMetadata(headers);return new Response(object.body,{headers});
 }
 export async function PUT(request:Request,context:Context){
  const auth=await requireUser(request);if(!auth.user)return auth.response;

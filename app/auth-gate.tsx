@@ -17,36 +17,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [form, setForm] = useState({ username: "", displayName: "", password: "", confirmPassword: "", currentPassword: "", newPassword: "", confirmNewPassword: "" });
 
-  const prepareContext = async (forceSelection = false) => {
-    try {
-      const response = await fetch("/api/auth/context", { cache: "no-store" });
-      if (!response.ok) throw new Error("工作账号读取失败，请重试");
-      const data = await response.json() as { accounts: ContextOption[] };
-      const accounts = data.accounts ?? [];
-      setContextOptions(accounts);
-      if (!accounts.length) { setMode("ready"); return; }
-      const stored = readBusinessContext();
-      const storedAccount = stored ? accounts.find((item) => item.id === stored.accountId) : undefined;
-      const account = storedAccount ?? (accounts.length === 1 ? accounts[0] : undefined);
-      const groups = account?.groups ?? [];
-      const storedGroup = stored?.groupId ? groups.find((item) => item.id === stored.groupId) : undefined;
-      const group = storedGroup ?? (groups.length === 1 ? groups[0] : undefined);
-      if (!forceSelection && accounts.length === 1 && account && groups.length <= 1) {
-        const next: BusinessAccountContext = { accountId: account.id, accountCode: account.code, accountName: account.name, platformName: account.platformName, platformCode: account.platformCode, groupId: group?.id ?? null, groupName: group?.name ?? null };
-        window.localStorage.setItem("orbit-business-context", JSON.stringify(next));
-        window.dispatchEvent(new Event("orbit-business-context-changed"));
-        setMode("ready");
-        return;
-      }
-      setSelectedAccountId(account ? String(account.id) : "");
-      setSelectedGroupId(group ? String(group.id) : "");
-      setMode("context");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "工作账号读取失败");
-      setMode("unavailable");
-    }
+  const prepareContext = async () => {
+    clearBusinessContext();
+    setMode("ready");
   };
-
   const check = async () => {
     setMode("loading");
     setError("");
@@ -121,7 +95,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const open = () => { if (mode === "ready") void prepareContext(true); };
+    const open = () => { if (mode === "ready") void prepareContext(); };
     window.addEventListener("orbit-request-business-context", open);
     return () => window.removeEventListener("orbit-request-business-context", open);
   }, [mode]);
@@ -132,7 +106,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const group = account.groups.find((item) => String(item.id) === selectedGroupId);
     if (account.groups.length > 1 && !group) { setError("请选择内容组"); return; }
     const next: BusinessAccountContext = { accountId: account.id, accountCode: account.code, accountName: account.name, platformName: account.platformName, platformCode: account.platformCode, groupId: group?.id ?? null, groupName: group?.name ?? null };
-    window.localStorage.setItem("orbit-business-context", JSON.stringify(next));
+    window.sessionStorage.setItem("orbit-business-context", JSON.stringify(next));
     window.dispatchEvent(new Event("orbit-business-context-changed"));
     setError("");
     setMode("ready");

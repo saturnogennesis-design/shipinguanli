@@ -19,13 +19,13 @@ test("renders the local-only authentication gate before the workspace", async ()
   assert.match(html, /<title>内容中台｜公司短视频管理平台<\/title>/i);
   assert.match(html, /正在连接本地服务/);
   assert.match(html, /仅限公司内网访问/);
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/project-shell.tsx", import.meta.url), "utf8");
   assert.match(source, /我的待办/);
   assert.match(source, /审核中心/);
   assert.match(source, /发布管理/);
   assert.match(source, /版本管理/);
-  assert.match(source, /商品管理/);
-  assert.match(source, /短视频账号/);
+  assert.match(source, /项目管理/);
+  assert.match(source, /发布目标账号管理/);
   const auth = await readFile(new URL("../app/auth-gate.tsx", import.meta.url), "utf8");
   assert.match(auth, /退出并切换账号/);
   assert.match(auth, /fetch\("\/api\/auth\/logout", \{ method: "POST" \}\)/);
@@ -113,70 +113,6 @@ test("shows the latest rejection reason in rejected content details", async () =
   assert.match(contentsRoute, /rejectionReason:/);
 });
 
-test("separates review states and manages publishing with configured platform lights", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  assert.match(source, /content-board-lane/);
-  assert.match(source, /全部审核状态/);
-  assert.match(source, /item\.status==="审核中"\?"blue":"slate"/);
-  assert.match(source, /按账号快捷筛选/);
-  assert.match(source, /configuredPlatforms/);
-  assert.match(source, /平台灯及顺序来自/);
-  assert.doesNotMatch(source.slice(source.indexOf("function PublishManagement"), source.indexOf("function VersionCenter")), /关联组/);
-});
-
-test("prioritizes platform lights and supports uploaded platform artwork", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const publishing = source.slice(source.indexOf("function PublishManagement"), source.indexOf("function VersionCenter"));
-  assert.match(publishing, /<th>内容<\/th>[\s\S]*<th>发布平台<\/th>[\s\S]*<th>关联商品<\/th>[\s\S]*<th>类型\/版本<\/th>/);
-  assert.match(publishing, /platformIcons\[platform\.key\]/);
-  assert.doesNotMatch(publishing, /<small>\{platform\.name\}<\/small>/);
-  assert.match(source, /发布灯图案/);
-  assert.match(source, /accept="image\/\*"/);
-  assert.match(source, /api\/platforms\/\$\{encodeURIComponent\(key\)\}\/icon/);
-});
-
-test("adds unpublished filtering, publishing detail editing, and confirmed light changes", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const publishing = source.slice(source.indexOf("function PublishManagement"), source.indexOf("function VersionCenter"));
-  assert.match(publishing, /\[\s*"全部账号",\s*"未发布"/);
-  assert.match(publishing, /仍有目标平台未点亮的内容/);
-  assert.match(publishing, /点击名称查看详情/);
-  assert.match(publishing, /目标发布平台/);
-  assert.match(publishing, /发布标题、文案与话题/);
-  assert.match(publishing, /导入文案 TXT/);
-  assert.match(publishing, /AI生成（未配置）/);
-  assert.match(publishing, /确认.*点亮.*关闭/);
-  assert.match(publishing, /setConfirmToggle/);
-});
-
-test("links selected publishing platforms to one account per platform", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const publishing = source.slice(source.indexOf("function PublishManagement"), source.indexOf("function VersionCenter"));
-  assert.match(publishing, /accountOptions\.filter/);
-  assert.match(publishing, /selectedAccounts/);
-  assert.match(publishing, /同一内容在同一平台选择一个账号/);
-  assert.match(publishing, /暂不分配/);
-  assert.match(publishing, /join\(" \/ "\)\s*\|\|\s*"未分配"/);
-  assert.match(publishing, /account:\s*accountSummary/);
-  assert.match(publishing, /fetch\("\/api\/publishing"/);
-  assert.match(publishing, /method:\s*"PUT"/);
-  assert.match(publishing, /method:\s*"PATCH"/);
-});
-
-test("persists publishing assignments, copy, and confirmed platform status", async () => {
-  const listRoute = await readFile(new URL("../app/api/publishing/route.ts", import.meta.url), "utf8");
-  const detailRoute = await readFile(new URL("../app/api/publishing/[code]/route.ts", import.meta.url), "utf8");
-  const statusRoute = await readFile(new URL("../app/api/publishing/[code]/platforms/[platformCode]/route.ts", import.meta.url), "utf8");
-  const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
-  assert.match(listRoute, /reviewStatus, "approved"/);
-  assert.match(listRoute, /publicationCopies/);
-  assert.match(detailRoute, /同一平台只能分配一次/);
-  assert.match(detailRoute, /publishing\.details_update/);
-  assert.match(statusRoute, /点亮发布灯前必须选择该平台的发布账号/);
-  assert.match(statusRoute, /publishing\.mark_published/);
-  assert.match(schema, /productId: integer\("product_id"\)\.references/);
-});
-
 test("uses a content list and focused detail for version management", async () => {
   const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
   const versions = source.slice(source.indexOf("function VersionCenter"), source.indexOf("function ProductManagement"));
@@ -203,58 +139,6 @@ test("allows new versions only after rejection and keeps version management read
   assert.match(versions, /selectedHistoricalCount/);
   assert.doesNotMatch(versions, /打开新版本上传/);
   assert.match(source, /await reloadContents\(\)/);
-});
-
-test("drills from product fields and account metrics into filtered lists", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const resources = source.slice(source.indexOf("type ManagementContent"), source.indexOf("function PlatformStores"));
-  const drilldown = source.slice(source.indexOf("function DrilldownContentList"), source.indexOf("function BusinessCreateModal"));
-  assert.match(resources, /account-drill-menu/);
-  assert.match(resources, /publishedContents\.filter/);
-  assert.match(resources, /条已发布 →/);
-  assert.match(resources, /已挂账号.*可先展开选择具体账号/);
-  assert.match(resources, /ProductDrill/);
-  assert.match(resources, /DrilldownContentList/);
-  assert.match(resources, /account-product-menu/);
-  assert.match(resources, /data\.bindings\s*\.filter/);
-  assert.match(resources, /绑定商品/);
-  assert.match(resources, /已发布内容 · 查看全部/);
-  assert.match(resources, /筛选条件已自动带入/);
-  assert.match(resources, /toManagementContents/);
-  assert.match(drilldown, /仅展示已完成发布的内容/);
-  assert.match(drilldown, /<th>\s*发布时间\s*<\/th>/);
-  assert.match(drilldown, /按关联商品筛选/);
-  assert.match(drilldown, /initialProductCode/);
-  assert.match(drilldown, /visibleRows/);
-  assert.doesNotMatch(drilldown, /<th>状态<\/th>|全部状态|item\.status/);
-});
-
-test("persists business master data used by publishing", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const businessRoute = await readFile(new URL("../app/api/business-data/route.ts", import.meta.url), "utf8");
-  assert.match(source, /reloadBusinessData/);
-  assert.match(source, /BusinessCreateModal/);
-  assert.match(source, /商品已保存，可在发布管理中关联/);
-  assert.match(source, /短视频账号及商品绑定已保存/);
-  assert.match(businessRoute, /没有维护业务资料的权限/);
-  assert.match(businessRoute, /entity==="store"/);
-  assert.match(businessRoute, /entity==="account"/);
-  assert.match(businessRoute, /entity==="product"/);
-  assert.match(businessRoute, /entity!=="accountProducts"/);
-  assert.match(businessRoute, /publishStatus,"published"/);
-  assert.match(businessRoute, /business\.platform_reorder/);
-});
-
-test("manages platform order, stores, and safe disable rules", async () => {
-  const source = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const settings = source.slice(source.indexOf("function PlatformStores"), source.indexOf("function Analytics"));
-  assert.match(settings, /movePlatform/);
-  assert.match(settings, /发布管理的平台灯顺序同步生效/);
-  assert.match(settings, /settings-drawer/);
-  assert.match(settings, /店铺编号/);
-  assert.match(settings, /编号和状态统一维护/);
-  assert.match(settings, /历史内容和关联记录不受影响/);
-  assert.match(source, /platforms\.filter\([\s\S]*platform\.status\s*===\s*"启用"/);
 });
 
 test("configures roles, employees, departments, and data scopes without hardcoded role checks", async () => {
@@ -288,27 +172,7 @@ test("filters operational analytics and keeps immutable audit records", async ()
   assert.match(audit, /导出日志/);
 });
 
-test("loads the workbench and analytics from permission-scoped database records", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  const dashboardRoute = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
-  const analyticsRoute = await readFile(new URL("../app/api/analytics/route.ts", import.meta.url), "utf8");
-  assert.match(page, /fetch\("\/api\/dashboard"/);
-  assert.match(page, /dashboard\.summary\.pendingReview/);
-  assert.match(page, /dashboard\.contentTasks\.filter/);
-  assert.match(page, /dashboard\.reviewTasks\.map/);
-  assert.doesNotMatch(page, /内容总资产", "2,438"|本月已发布", "186"/);
-  assert.match(modules, /function AnalyticsLive/);
-  assert.match(modules, /fetch\("\/api\/analytics"/);
-  assert.match(modules, /只允许选择已经点亮发布灯的内容/);
-  assert.match(dashboardRoute, /contentVisibility\(auth\.user\)/);
-  assert.match(dashboardRoute, /publishedThisMonth/);
-  assert.match(analyticsRoute, /contentMetrics/);
-  assert.match(analyticsRoute, /analytics\.metric_create/);
-  assert.match(analyticsRoute, /只能为已发布内容录入数据/);
-});
-
-test("persists administration, audit logs, platform icons, previews, and version deletion", async () => {
+test("persists administration, audit logs, retired platform responses, previews, and version deletion", async () => {
   const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
   const adminRoute = await readFile(new URL("../app/api/admin/route.ts", import.meta.url), "utf8");
   const auditRoute = await readFile(new URL("../app/api/audit-logs/route.ts", import.meta.url), "utf8");
@@ -320,14 +184,12 @@ test("persists administration, audit logs, platform icons, previews, and version
   assert.match(modules, /<VersionCenterLive/);
   assert.match(modules, /real-video-preview/);
   assert.match(modules, /real-image-preview/);
-  assert.match(modules, /短视频账号及商品绑定已保存/);
   assert.match(adminRoute, /hashPassword/);
   assert.match(adminRoute, /当前登录账号不能停用或修改自己的角色/);
   assert.match(auditRoute, /auditLogs/);
   assert.match(versionsRoute, /versionNumber<item\.latestVersionNumber/);
   assert.match(versionsRoute, /content\.version_source_purge/);
-  assert.match(iconRoute, /platform-icons/);
-  assert.match(iconRoute, /getMediaStore\(\)/);
+  assert.match(iconRoute, /status:410/);
   assert.match(contentVersionsRoute, /contentVersionFiles/);
 });
 
@@ -371,7 +233,7 @@ test("manages deleted test content through a recoverable recycle bin", async () 
 });
 
 test("binds neutral recommendation cases to review decisions and versions", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/project-shell.tsx", import.meta.url), "utf8");
   const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
   const contentRoute = await readFile(new URL("../app/api/contents/[id]/route.ts", import.meta.url), "utf8");
   const dashboardRoute = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
@@ -379,7 +241,7 @@ test("binds neutral recommendation cases to review decisions and versions", asyn
   const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
   const reviewRoute = await readFile(new URL("../app/api/review-sessions/[id]/route.ts", import.meta.url), "utf8");
   assert.match(page, /推荐案例/);
-  assert.match(page, /setPreview\(\{ item, versionNumber: item\.recommendedVersionNumber \}\)/);
+  assert.match(page, /setPreview\(item\)/);
   assert.match(modules, /只看推荐案例/);
   assert.match(modules, /通过或驳回都可以推荐/);
   assert.match(modules, /推荐案例必须填写审核评语/);
@@ -392,17 +254,6 @@ test("binds neutral recommendation cases to review decisions and versions", asyn
   assert.match(dashboardRoute, /recommended/);
   assert.match(permissions, /review\.recommend/);
   assert.match(schema, /recommended:\s*integer\("recommended"/);
-});
-
-test("refreshes modules on navigation while preserving local back state", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
-  assert.match(page, /setNavEpoch\(\(value\)\s*=>\s*value\s*\+\s*1\)/);
-  assert.match(page, /key=\{`\$\{activeNav\}-\$\{navEpoch\}`\}/);
-  assert.match(page, /void loadDashboard\(\)/);
-  assert.match(modules, /onBack=\{\(\)\s*=>\s*\{[\s\S]*?setDetailId\(""\)/);
-  assert.doesNotMatch(page, /等待领导处理|待领导审核/);
-  assert.doesNotMatch(modules, /审核领导|等待领导处理|待领导审核/);
 });
 
 test("keeps the Windows server alive without PowerShell stream piping", async () => {
@@ -421,23 +272,18 @@ test("keeps the Windows server alive without PowerShell stream piping", async ()
 });
 
 test("applies V1.6 permission, owner-version, dashboard, and unified-filter rules", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/project-shell.tsx", import.meta.url), "utf8");
   const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
   const versions = await readFile(new URL("../app/api/contents/[id]/versions/route.ts", import.meta.url), "utf8");
   const admin = await readFile(new URL("../app/api/admin/route.ts", import.meta.url), "utf8");
   const contents = await readFile(new URL("../app/api/contents/route.ts", import.meta.url), "utf8");
   const stopServer = await readFile(new URL("../deploy/windows/stop-server.ps1", import.meta.url), "utf8");
-  assert.match(page, /workspaceNav\.filter/);
-  assert.match(page, /当前账号已无权访问该模块/);
   assert.match(page, /我的待办/);
-  assert.match(page, /workbenchTasks/);
-  assert.match(page, /返回工作台/);
-  assert.match(dashboard, /reviewSubmittedAt/);
-  assert.match(dashboard, /businessActivityAt/);
-  assert.match(dashboard, /slice\(0, 10\)/);
+  assert.match(dashboard, /c\.account_id/);
+  assert.match(dashboard, /slice\(0,10\)/);
   assert.match(versions, /只有原上传人可以上传此内容的新版本/);
-  assert.match(versions, /推荐案例仅在工作台中查看/);
+  assert.match(versions, /recommendedVersionId/);
   assert.match(admin, /只有超级管理员可以修改员工姓名或重置密码/);
   assert.match(modules, /data\.canManageSensitiveAccounts/);
   assert.match(modules, /aria-label="筛选条件"/);
@@ -500,6 +346,6 @@ test("recommendations stay out of peer content pools and version management",asy
   assert.doesNotMatch(access,/groupRecommendation/);
   assert.match(versions,/eq\(contents\.uploaderUserId,auth\.user\.id\)/);
   assert.doesNotMatch(versions,/contentVisibility\(auth\.user\)/);
-  assert.match(detailVersions,/推荐案例仅在工作台中查看/);
+  assert.match(detailVersions,/recommendedVersionId/);
   assert.doesNotMatch(detailVersions,/recommendedVersionIds/);
 });

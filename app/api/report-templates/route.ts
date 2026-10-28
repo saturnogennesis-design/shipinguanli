@@ -4,8 +4,8 @@ import { reportTemplates,reportTemplateAssignments,users } from "@/db/schema";
 import { requireUser,hasPermission } from "@/lib/server-auth";
 async function fixed(userId:number){
  const db=getDb();await db.insert(reportTemplates).values({name:"日报",code:"RPT-DAILY",createdByUserId:userId,fieldsJson:'[{"key":"completed","type":"numbered"},{"key":"plan","type":"numbered"},{"key":"remark","type":"textarea"}]'}).onConflictDoNothing();
- await db.insert(reportTemplates).values({name:"口播文案",code:"RPT-SPOKEN-COPY",description:"按商品记录口播文案",createdByUserId:userId,fieldsJson:'[{"key":"completed","type":"numbered","label":"口播文案","required":true},{"key":"remark","type":"textarea","label":"备注"}]'}).onConflictDoNothing();
- return db.select().from(reportTemplates).where(inArray(reportTemplates.code,["RPT-DAILY","RPT-SPOKEN-COPY"]));
+
+ return db.select().from(reportTemplates).where(inArray(reportTemplates.code,["RPT-DAILY"]));
 }
 export async function GET(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;

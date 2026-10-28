@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     .leftJoin(products, eq(contents.productId, products.id))
     .leftJoin(productMasters, eq(contents.productMasterId, productMasters.id))
     .innerJoin(contentVersions, and(eq(contentVersions.contentId, contents.id), eq(contentVersions.versionNumber, contents.latestVersionNumber), eq(contentVersions.uploadStatus, "complete"), isNull(contentVersions.deletedAt)))
-    .where(and(inArray(contents.reviewStatus, statuses),groupCondition,auth.user.roleCode==="super_admin"?undefined:ne(contents.uploaderUserId,auth.user.id), isNull(contents.deletedAt),isNull(contents.archivedAt)))
+    .where(and(eq(contents.accountId,auth.user.projectId!),inArray(contents.reviewStatus, statuses),groupCondition,auth.user.roleCode==="super_admin"?undefined:ne(contents.uploaderUserId,auth.user.id), isNull(contents.deletedAt),isNull(contents.archivedAt)))
     .orderBy(asc(contents.reviewSubmittedAt), asc(contents.id)).limit(500);
   const productNames=[...new Set(rows.map((row)=>row.productName).filter((name):name is string=>Boolean(name)))];
   const masters=productNames.length?await db.select({id:productMasters.id,name:productMasters.name,imageStoragePath:productMasters.imageStoragePath}).from(productMasters).where(and(inArray(productMasters.name,productNames),eq(productMasters.status,"active"))).orderBy(asc(productMasters.id)):[];

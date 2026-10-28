@@ -45,8 +45,9 @@ export async function POST(request:Request,{params}:Context){
 export async function PATCH(request:Request,{params}:Context){
  const auth=await requireUser(request);if(!auth.user)return auth.response;const u=auth.user,db=getDb(),id=Number((await params).id);
  const [report]=await db.select().from(workReports).where(eq(workReports.id,id));
+ if(report?.templateCode!=="RPT-DAILY")return Response.json({error:"口播文案报备已取消"},{status:410});
  const canOwnerEdit=report?.submitterUserId===u.id&&report?.status==="draft";
- const isSpoken=report?.templateCode==="RPT-SPOKEN-COPY";
+ const isSpoken=false;
  const canRecipientEdit=isSpoken&&report?.status==="submitted"&&report?.recipientUserId===u.id&&hasPermission(u,"report.receive");
  if(report&&report.submitterUserId===u.id&&!isSpoken&&report.status!=="draft")return Response.json({error:"已提交的日报不能编辑"},{status:409});
  if(!report||(!canOwnerEdit&&!canRecipientEdit))return Response.json({error:"当前账号没有修改权限"},{status:403});

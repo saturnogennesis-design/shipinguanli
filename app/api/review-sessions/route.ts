@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const auth = await requireUser(request);
   if (!auth.user) return auth.response;
   if (!hasPermission(auth.user, "review.process")) return Response.json({ error: "没有查看审核队列的权限" }, { status: 403 });
-  const [session] = await getDb().select().from(reviewSessions).where(and(eq(reviewSessions.reviewerUserId, auth.user.id), eq(reviewSessions.status, "active"), gt(reviewSessions.expiresAt, new Date().toISOString()))).orderBy(desc(reviewSessions.id)).limit(1);
+  const [session] = await getDb().select().from(reviewSessions).where(and(eq(reviewSessions.reviewerUserId, auth.user.id), eq(reviewSessions.projectId,auth.user.projectId!), eq(reviewSessions.status, "active"), gt(reviewSessions.expiresAt, new Date().toISOString()))).orderBy(desc(reviewSessions.id)).limit(1);
   return Response.json({ session: session ?? null,canProcess:hasPermission(auth.user,"review.process") });
 }
 
@@ -27,17 +27,17 @@ export async function POST(request: Request) {
     await db.update(contents).set({ reviewStatus: "pending", updatedAt: now }).where(and(eq(contents.id, lock.contentId), eq(contents.reviewStatus, "reviewing")));
     await db.update(contentVersions).set({reviewStatus:"pending",updatedAt:now}).where(eq(contentVersions.contentId,lock.contentId));
   }
-  const [activeSession] = await db.select({ id: reviewSessions.id }).from(reviewSessions).where(and(eq(reviewSessions.reviewerUserId, auth.user.id), eq(reviewSessions.status, "active"), gt(reviewSessions.expiresAt, now))).orderBy(desc(reviewSessions.id)).limit(1);
+  const [activeSession] = await db.select({ id: reviewSessions.id }).from(reviewSessions).where(and(eq(reviewSessions.reviewerUserId, auth.user.id), eq(reviewSessions.projectId,auth.user.projectId!), eq(reviewSessions.status, "active"), gt(reviewSessions.expiresAt, now))).orderBy(desc(reviewSessions.id)).limit(1);
   if (activeSession) return Response.json({ error: "您已有未提交的审核队列，请先继续处理", sessionId: activeSession.id }, { status: 409 });
   const reviewGroups=groupScopeIds(auth.user,"review");if(!reviewGroups.length&&auth.user.primaryGroupId)reviewGroups.push(auth.user.primaryGroupId);
-  const conditions = [eq(contents.reviewStatus, "pending"),isNull(contents.archivedAt), isNull(contents.deletedAt),auth.user.roleCode==="super_admin"?undefined:ne(contents.uploaderUserId,auth.user.id),auth.user.roleCode==="super_admin"?sql`1=1`:reviewGroups.length?inArray(contents.groupId,reviewGroups):sql`0=1`].filter(Boolean) as any[];
+  const conditions = [eq(contents.accountId,auth.user.projectId!),eq(contents.reviewStatus, "pending"),isNull(contents.archivedAt), isNull(contents.deletedAt),auth.user.roleCode==="super_admin"?undefined:ne(contents.uploaderUserId,auth.user.id),auth.user.roleCode==="super_admin"?sql`1=1`:reviewGroups.length?inArray(contents.groupId,reviewGroups):sql`0=1`].filter(Boolean) as any[];
   if (payload.contentCodes?.length) conditions.push(inArray(contents.code, payload.contentCodes.slice(0, 100)));
   const candidates = await db.select({ contentId: contents.id, code: contents.code, versionId: contentVersions.id }).from(contents)
     .innerJoin(contentVersions, and(eq(contentVersions.contentId, contents.id), eq(contentVersions.versionNumber, contents.latestVersionNumber), eq(contentVersions.uploadStatus, "complete"), isNull(contentVersions.deletedAt)))
     .where(and(...conditions)).orderBy(asc(contents.reviewSubmittedAt),asc(contents.id)).limit(100);
   if (!candidates.length) return Response.json({ error: "当前没有可以领取的待审核内容" }, { status: 409 });
   const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-  const [session] = await db.insert(reviewSessions).values({ reviewerUserId: auth.user.id, expiresAt }).returning();
+  const [session] = await db.insert(reviewSessions).values({ reviewerUserId: auth.user.id,projectId:auth.user.projectId!, expiresAt }).returning();
   const acquiredContentIds: number[] = [];
   try {
     for (let index = 0; index < candidates.length; index += 1) {

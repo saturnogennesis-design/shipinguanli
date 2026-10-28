@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, isNotNull, isNull, notInArray, or, sql } from "drizzle-orm";
-import { getDb } from "@/db";
+import { getDb, getLocalDatabase } from "@/db";
 import { contentMetrics, contentReviewLocks, contentVersionFiles, contentVersions, contents, platformContents, productMasters, products, publicationCopies, publicationEvents, reviewQueueItems, reviews, shortVideoAccounts, users } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
 import { getMediaStore } from "@/lib/media-store";
@@ -18,7 +18,7 @@ export async function GET(request:Request){
   if(!hasPermission(auth.user,"content.delete"))return Response.json({error:"没有查看回收站的权限"},{status:403});
   const company=companyContentAccess(auth.user);
   await syncProductMasterCatalog();
-  const where=company?isNotNull(contents.deletedAt):and(isNotNull(contents.deletedAt),eq(contents.uploaderUserId,auth.user.id));
+  const where=and(eq(contents.accountId,auth.user.projectId!),company?isNotNull(contents.deletedAt):and(isNotNull(contents.deletedAt),eq(contents.uploaderUserId,auth.user.id)));
   const rows=await getDb().select({id:contents.id,code:contents.code,title:contents.title,contentType:contents.contentType,reviewStatus:contents.reviewStatus,trashPreviousStatus:contents.trashPreviousStatus,latestVersionNumber:contents.latestVersionNumber,deletedAt:contents.deletedAt,createdAt:contents.createdAt,uploaderUserId:users.id,contentColor:users.contentColor,uploaderName:users.displayName,productName:sql<string|null>`coalesce(${productMasters.name},${products.name})`,accountName:shortVideoAccounts.name}).from(contents).innerJoin(users,eq(contents.uploaderUserId,users.id)).leftJoin(products,eq(contents.productId,products.id)).leftJoin(productMasters,eq(contents.productMasterId,productMasters.id)).leftJoin(shortVideoAccounts,eq(contents.accountId,shortVideoAccounts.id)).where(where).orderBy(desc(contents.deletedAt)).limit(1000);
   return Response.json({contents:rows,canPurge:auth.user.roleCode==="super_admin"});
 }
@@ -42,6 +42,7 @@ export async function DELETE(request:Request){
   const payload=await request.json() as {codes?:unknown};const codes=codesFrom(payload.codes);if(!codes.length)return Response.json({error:"请选择需要永久删除的内容"},{status:400});
   const selected=await getDb().select({id:contents.id,code:contents.code}).from(contents).where(and(inArray(contents.code,codes),isNotNull(contents.deletedAt)));if(!selected.length)return Response.json({error:"所选内容不在回收站"},{status:404});
   const contentIds=selected.map((item)=>item.id);
+  if(getLocalDatabase().prepare("SELECT content_id FROM publishing_records UNION SELECT content_id FROM publishing_events").all().some(row=>contentIds.includes(Number(row.content_id))))return Response.json({error:"内容仍有发布记录或日志，不能永久删除"},{status:409});
   const versions=await getDb().select({id:contentVersions.id,storagePath:contentVersions.storagePath,mimeType:contentVersions.mimeType,coverPath:contentVersions.coverPath}).from(contentVersions).where(inArray(contentVersions.contentId,contentIds));
   const versionIds=versions.map((item)=>item.id);
   const files=versionIds.length?await getDb().select({storagePath:contentVersionFiles.storagePath}).from(contentVersionFiles).where(inArray(contentVersionFiles.versionId,versionIds)):[];

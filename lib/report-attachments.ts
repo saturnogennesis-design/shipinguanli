@@ -14,8 +14,7 @@ export function reportFileType(name: string, templateCode: string) {
   return mimeType ? {extension,mimeType} : null;
 }
 export function canEditReportAttachments(report: {submitterUserId:number;recipientUserId:number|null;status:string;templateCode:string}, user: {id:number;canReceive:boolean;canCreate:boolean}) {
-  return (report.status === "draft" && report.submitterUserId === user.id && user.canCreate) ||
-    (report.templateCode === "RPT-SPOKEN-COPY" && report.status === "submitted" && report.recipientUserId === user.id && user.canReceive);
+  return (report.templateCode === "RPT-DAILY" && report.status === "draft" && report.submitterUserId === user.id && user.canCreate);
 }
 export function matchesReportSignature(extension: string, bytes: Uint8Array) {
   const starts = (...values:number[]) => values.every((value,index)=>bytes[index]===value);

@@ -23,7 +23,7 @@ test("direct announcement attachments migrate while old announcements stay publi
 
 test("announcement UI uses explicit read and persistent reply reminders without auto archive",()=>{
   const ui=readFileSync(new URL("../app/communication-center.tsx",import.meta.url),"utf8");
-  const dashboard=readFileSync(new URL("../app/page.tsx",import.meta.url),"utf8");
+  const dashboard=readFileSync(new URL("../app/project-shell.tsx",import.meta.url),"utf8");
   const api=readFileSync(new URL("../app/api/notices/[id]/route.ts",import.meta.url),"utf8");
   assert.match(ui,/公告图片或视频/);
   assert.match(ui,/要求员工回复/);

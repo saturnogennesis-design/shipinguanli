@@ -20,7 +20,7 @@ const BusinessContext = createContext<ContextValue>({ context: null, setContext:
 
 export function readBusinessContext(): BusinessAccountContext | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) as BusinessAccountContext : null;
   } catch { return null; }
 }
@@ -37,8 +37,8 @@ export function BusinessContextProvider({ children }: { children: ReactNode }) {
     context,
     setContext(next) {
       setContextState(next);
-      if (next) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      else window.localStorage.removeItem(STORAGE_KEY);
+      if (next) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      else window.sessionStorage.removeItem(STORAGE_KEY);
       window.dispatchEvent(new Event(EVENT_NAME));
     },
     requestSwitch() { window.dispatchEvent(new Event("orbit-request-business-context")); },
@@ -50,6 +50,6 @@ export function useBusinessContext() { return useContext(BusinessContext); }
 
 export function clearBusinessContext() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  window.sessionStorage.removeItem(STORAGE_KEY);
   window.dispatchEvent(new Event(EVENT_NAME));
 }

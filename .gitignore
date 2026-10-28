@@ -42,3 +42,6 @@ yarn-error.log*
 /logs/
 /deployment-info.txt
 /deploy/windows/orbit-config.ps1
+
+# Local TypeScript incremental output
+*.tsbuildinfo

@@ -18,7 +18,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const code = (await context.params).id;
   const record = await findContent(code);
   if (!record) return Response.json({ error: "内容不存在" }, { status: 404 });
-  const payload = await request.json() as { action?: "archive" | "unarchive" | "submit" | "withdraw" | "update" | "feature" | "unfeature" | string; reason?: string; title?: string; remark?: string; productId?: number | null; productMasterId?: number | null; accountId?: number | null; visibility?: "private" | "public"; featuredReason?:string; featuredTags?:string[];confirmRecommendationCancellation?:boolean };
+  const payload = await request.json() as { action?: "archive" | "unarchive" | "submit" | "withdraw" | "update" | "feature" | "unfeature" | string; reason?: string; categoryId?:number|null; title?: string; remark?: string; productId?: number | null; productMasterId?: number | null; accountId?: number | null; visibility?: "private" | "public"; featuredReason?:string; featuredTags?:string[];confirmRecommendationCancellation?:boolean };
   const ownsContent = record.uploaderUserId === auth.user.id;
   const canManageRecommendation=payload.action==="unfeature"&&(hasPermission(auth.user,"content.feature")||hasPermission(auth.user,"review.recommend"));
   if (!ownsContent && !companyContentAccess(auth.user) && !canManageRecommendation) return Response.json({ error: "无权操作此内容" }, { status: 403 });
@@ -82,7 +82,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const nextMasterId=payload.productMasterId===undefined?record.productMasterId:(payload.productMasterId||null);
     if(nextMasterId){const [master]=await db.select({id:productMasters.id}).from(productMasters).where(and(eq(productMasters.id,nextMasterId),eq(productMasters.status,"active"))).limit(1);if(!master)return Response.json({error:"所选商品不存在或已停用"},{status:409});}
     if(payload.productMasterId===null&&payload.productId===undefined&&!record.productId)return Response.json({error:"请选择所属商品"},{status:400});
-    await db.update(contents).set({ title, remark: payload.remark?.trim() ?? record.remark, productId: payload.productId === undefined ? record.productId : payload.productId, productMasterId: nextMasterId, accountId: payload.accountId === undefined ? record.accountId : payload.accountId, visibility,businessActivityAt:now, updatedAt: now }).where(eq(contents.id, record.id));
+    await db.update(contents).set({ title, categoryId:payload.categoryId, remark: payload.remark?.trim() ?? record.remark, productId: payload.productMasterId === undefined ? record.productId : null, productMasterId: nextMasterId, accountId: payload.accountId === undefined ? record.accountId : payload.accountId, visibility,businessActivityAt:now, updatedAt: now }).where(eq(contents.id, record.id));
     await writeAudit(request, { userId: auth.user.id, action: "content.update", objectType: "content", objectId: code });
     return Response.json({ ok: true });
   }

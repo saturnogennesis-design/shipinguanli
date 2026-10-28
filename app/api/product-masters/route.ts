@@ -1,4 +1,4 @@
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@/db";
 import { materialSets, productMasters } from "@/db/schema";
@@ -15,8 +15,8 @@ export async function GET(request:Request){
  if(!canUseCatalog)return error("没有查看素材产品库的权限",403);
  await syncProductMasterCatalog();
  const includeInactive=new URL(request.url).searchParams.get("all")==="1"&&hasPermission(auth.user,"business.product_masters");
- const rows=await getDb().select().from(productMasters).where(includeInactive?undefined:eq(productMasters.status,"active")).orderBy(asc(productMasters.name));
- return Response.json({items:rows.map(row=>({...row,imageUrl:row.imageStoragePath?`/api/product-masters/${row.id}/image?v=${encodeURIComponent(row.updatedAt)}`:null}))});
+ const rows=await getDb().select().from(productMasters).where(and(eq(productMasters.projectId,auth.user.projectId!),includeInactive?undefined:eq(productMasters.status,"active"))).orderBy(asc(productMasters.name));
+ return Response.json({items:rows.map(row=>({...row,imageUrl:row.imageStoragePath?`/api/product-masters/${row.id}/image?v=${encodeURIComponent(row.updatedAt)}&projectId=${auth.user!.projectId}`:null}))});
 }
 
 export async function POST(request:Request){
@@ -24,12 +24,12 @@ export async function POST(request:Request){
  if(!hasPermission(auth.user,"business.product_masters")&&!hasPermission(auth.user,"asset.upload"))return error("没有新增素材产品的权限",403);
  const body=await request.json().catch(()=>null) as {name?:unknown,imageType?:unknown}|null;
  const name=cleanName(body?.name);if(!name)return error("请填写产品名称");
- const [duplicate]=await getDb().select({id:productMasters.id}).from(productMasters).where(eq(productMasters.name,name)).limit(1);if(duplicate)return error("产品名称已存在，请直接修改或启用已有产品",409);
+ const [duplicate]=await getDb().select({id:productMasters.id}).from(productMasters).where(and(eq(productMasters.name,name),eq(productMasters.projectId,auth.user.projectId!))).limit(1);if(duplicate)return error("产品名称已存在，请直接修改或启用已有产品",409);
  const imageType=String(body?.imageType??"");
  if(imageType&&!['image/jpeg','image/png','image/webp'].includes(imageType))return error("产品图片仅支持 JPG、PNG 或 WebP");
  const imageStoragePath=imageType?`product-masters/${randomUUID()}`:null;
- const [row]=await getDb().insert(productMasters).values({name,imageStoragePath,createdByUserId:auth.user.id}).returning();
- return Response.json({...row,imageUploadUrl:imageStoragePath?`/api/product-masters/${row.id}/image`:null},{status:201});
+ const [row]=await getDb().insert(productMasters).values({name,projectId:auth.user.projectId!,imageStoragePath,createdByUserId:auth.user.id}).returning();
+ return Response.json({...row,imageUploadUrl:imageStoragePath?`/api/product-masters/${row.id}/image?projectId=${auth.user!.projectId}`:null},{status:201});
 }
 
 export async function PATCH(request:Request){
@@ -44,7 +44,7 @@ export async function PATCH(request:Request){
  const imageType=String(body?.imageType??"");if(imageType){if(!['image/jpeg','image/png','image/webp'].includes(imageType))return error("产品图片仅支持 JPG、PNG 或 WebP");changes.imageStoragePath=current.imageStoragePath??`product-masters/${randomUUID()}`;}
  const [row]=await getDb().update(productMasters).set(changes).where(eq(productMasters.id,id)).returning();
  await writeAudit(request,{userId:auth.user.id,action:"product_master.update",objectType:"product_master",objectId:String(id),details:{name:row.name,imageChanged:Boolean(imageType)}});
- return Response.json({...row,imageUrl:row.imageStoragePath?`/api/product-masters/${row.id}/image`:null,imageUploadUrl:imageType?`/api/product-masters/${row.id}/image`:null});
+ return Response.json({...row,imageUrl:row.imageStoragePath?`/api/product-masters/${row.id}/image?projectId=${auth.user!.projectId}`:null,imageUploadUrl:imageType?`/api/product-masters/${row.id}/image?projectId=${auth.user!.projectId}`:null});
 }
 
 export async function DELETE(request:Request){

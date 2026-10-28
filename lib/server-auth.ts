@@ -1,13 +1,16 @@
 import { and, eq, gt } from "drizzle-orm";
-import { getDb } from "@/db";
+import { getDb, getLocalDatabase } from "@/db";
 import { roles, userAccountResponsibilities, userGroupScopes, userPermissionOverrides, userSessions, users } from "@/db/schema";
 import { randomToken, sha256 } from "./security";
 import { dutyPermissions, permissionGranted } from "./permissions";
+
+import { bindProjectRequest } from "./project-access";
 
 const SESSION_COOKIE = "orbit_session";
 const SESSION_DAYS = 7;
 
 export type AuthUser = {
+  projectId?: number;
   id: number;
   username: string;
   displayName: string;
@@ -110,6 +113,8 @@ export async function getCurrentUser(request: Request): Promise<AuthUser | null>
 export async function requireUser(request: Request) {
   const user = await getCurrentUser(request);
   if (!user) return { user: null, response: Response.json({ error: "请先登录" }, { status: 401 }) } as const;
+  const projectError=await bindProjectRequest(getLocalDatabase(),request,user);
+  if(projectError)return {user:null,response:projectError} as const;
   return { user, response: null } as const;
 }
 

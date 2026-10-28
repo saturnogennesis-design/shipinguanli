@@ -11,13 +11,14 @@ import { randomToken } from "@/lib/security";
 export async function GET(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;const u=auth.user;
  if(!reportAccess(u))return Response.json({error:"没有工作报备权限"},{status:403});
- const [lists,templates,persons,products]=await Promise.all([reportLists(u),assigned(u),people(u),getDb().select({id:productMasters.id,name:productMasters.name,imageStoragePath:productMasters.imageStoragePath}).from(productMasters).where(eq(productMasters.status,"active"))]);
+ const [lists,templates,persons]=await Promise.all([reportLists(u),assigned(u),people(u)]);
  const [last]=await getDb().select({recipientUserId:workReports.recipientUserId}).from(workReports).where(and(eq(workReports.submitterUserId,u.id),eq(workReports.status,"submitted"))).orderBy(desc(workReports.submittedAt)).limit(1);
- return Response.json({...lists,users:persons,templates,products:products.map(p=>({...p,imageUrl:p.imageStoragePath?`/api/product-masters/${p.id}/image`:null})),currentUserId:u.id,canCreate:templates.length>0,lastRecipientUserId:last?.recipientUserId??null});
+ return Response.json({...lists,users:persons,templates,products:[],currentUserId:u.id,canCreate:templates.length>0,lastRecipientUserId:last?.recipientUserId??null});
 }
 export async function POST(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;const u=auth.user,db=getDb(),body=await request.json().catch(()=>({}));
  if(!reportAccess(u))return Response.json({error:"没有工作报备权限"},{status:403});
+ if(body.templateCode&&body.templateCode!=="RPT-DAILY")return Response.json({error:"口播文案报备已取消"},{status:410});
  if(["hide","unhide","delete"].includes(body.action)){
    const lists=await reportLists(u),row=[...lists.reports,...lists.cc].find(r=>r.key===body.key);
    if(!row)return Response.json({error:"无权操作该记录"},{status:403});

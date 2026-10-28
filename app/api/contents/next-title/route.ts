@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   let productName = "";
   let countPredicate;
   if (Number.isSafeInteger(productMasterId) && productMasterId > 0) {
-    const [product] = await db.select({ id: productMasters.id, name: productMasters.name, status: productMasters.status }).from(productMasters).where(eq(productMasters.id, productMasterId)).limit(1);
+    const [product] = await db.select({ id: productMasters.id, name: productMasters.name, status: productMasters.status }).from(productMasters).where(and(eq(productMasters.id, productMasterId),eq(productMasters.projectId,auth.user.projectId!))).limit(1);
     if (!product || product.status !== "active") return Response.json({ error: "商品不存在或已停用" }, { status: 404 });
     productName = product.name;
     countPredicate = eq(contents.productMasterId, productMasterId);
