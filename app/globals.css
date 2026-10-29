@@ -464,3 +464,65 @@ button,input,select,textarea{font-size:14px!important}
 .project-workspace{position:relative;isolation:isolate;z-index:0}
 .project-workspace .modal-backdrop,.project-workspace .recommendation-dialog-backdrop,.project-workspace .dashboard-preview-backdrop{left:310px}
 @media(max-width:760px){.project-workspace .modal-backdrop,.project-workspace .recommendation-dialog-backdrop,.project-workspace .dashboard-preview-backdrop{left:240px}}
+/* V3.17 viewport layout: opaque dialog title, one body scroll area and reachable controls. */
+.project-app{--navigation-width:310px}
+.project-sidebar[hidden]{display:none}
+.project-app.navigation-collapsed{--navigation-width:0px}
+.project-workspace{min-height:0;overflow-x:hidden}
+.project-topbar{position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:12px;padding:14px 24px}
+.navigation-toggle{flex-shrink:0;border:1px solid #d8e1ef;border-radius:8px;background:#fff;color:#315f9d;padding:9px 12px;cursor:pointer}
+.project-content,.module-area,.module-panel,.panel,.detail-page,.content-detail-layout,.unified-detail,.unified-detail-body{min-width:0;max-width:100%;box-sizing:border-box}
+.project-content{padding:20px;overflow-wrap:anywhere}
+.project-content>.content-area{padding:0}
+.project-workspace .modal-backdrop,.project-workspace .recommendation-dialog-backdrop,.project-workspace .dashboard-preview-backdrop{left:var(--navigation-width);padding:16px}
+.communication-dialog{display:flex;flex-direction:column;padding:0;overflow:hidden;width:min(1180px,100%);max-width:100%;max-height:calc(100dvh - 32px);min-height:0;scrollbar-gutter:auto}
+.communication-dialog>header{position:relative;top:auto;z-index:10;display:flex;align-items:center;flex-shrink:0;gap:12px;margin:0;padding:18px 20px;background:#fff;border-bottom:1px solid #dce3ed;isolation:isolate;min-width:0}
+.communication-dialog>header h2{flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.communication-dialog>header button{flex:0 0 40px;width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:8px;background:#f2f5fa;touch-action:manipulation;cursor:pointer}
+.communication-dialog>header button:disabled{cursor:wait;opacity:.45}
+.dialog-body{min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding:20px;scrollbar-gutter:stable}
+.dialog-body>footer,.dialog-body>form>footer{position:sticky;bottom:-20px;background:#fff;padding-bottom:12px;border-top:1px solid #edf0f5;z-index:3}
+.communication-dialog:has(.report-form) .report-form{max-height:none;overflow:visible;padding:0}
+.project-workspace .modal:not(.communication-dialog){max-width:100%;max-height:calc(100dvh - 32px);overflow:auto}
+.project-workspace .modal-head,.project-workspace .modal>header,.drawer-head,.dashboard-preview>header,.recommendation-dialog>header{background:#fff;isolation:isolate;box-shadow:0 -20px 0 20px #fff;min-width:0}
+.project-workspace .modal-head h2,.drawer-head h2{overflow-wrap:anywhere}
+.project-workspace table{min-width:0;width:100%}
+.project-workspace td{white-space:normal;overflow-wrap:anywhere;vertical-align:middle}
+.project-workspace th{white-space:nowrap}
+.project-workspace td:first-child{display:table-cell}
+.project-workspace .table-wrap,.project-workspace .communication-list,.project-workspace .expanded-content-list,.project-workspace .report-document-table,.project-workspace .recommendation-dialog-list{max-width:100%;min-width:0;min-height:0;max-height:var(--table-window-height,62dvh);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;position:relative}
+.project-workspace .table-wrap thead th,.communication-list thead th,.expanded-content-list thead th,.recommendation-dialog-list thead th{position:sticky;top:0;z-index:2;background:#f8faff;box-shadow:0 1px #dce3ed}
+.project-workspace .module-panel>.table-wrap{min-height:0}
+.project-workspace .module-table{min-width:640px}
+.project-workspace .employee-table,.project-workspace .permission-table,.project-workspace .metric-record-table{min-width:820px}
+.project-workspace .expanded-content-list table{min-width:720px}
+.project-workspace .report-table{min-width:720px}
+.project-workspace .report-document-table table{min-width:max-content}
+.viewport-table-rail{position:fixed;bottom:6px;z-index:2000;background:#fff;border:1px solid #ccd8e8;border-radius:7px;box-shadow:0 2px 12px #1e3a5f22;padding:3px 0 0;overflow:hidden}
+.viewport-table-rail small{display:block;font-size:10px;color:#64748b;padding:0 8px;line-height:14px}
+.viewport-table-rail>div{overflow-x:scroll;overflow-y:hidden;min-height:16px;scrollbar-color:#8ca4c6 #edf2f8;scrollbar-width:auto}
+.project-workspace .v3-file-list{max-height:none;overflow:visible}
+.project-workspace .v3-file-list>button{grid-template-columns:58px minmax(80px,1fr) 60px 60px 80px 48px;gap:8px}
+.project-workspace .v3-large-preview{min-height:180px;max-height:65dvh}
+.project-workspace .v3-large-preview img,.project-workspace .v3-large-preview video{max-height:62dvh}
+.project-workspace .v3-actions{position:sticky;bottom:-20px;background:#fff;padding-bottom:12px;z-index:3}
+.project-workspace .report-v39 .report-list-page,.project-workspace .report-v39 .report-editor-page{height:calc(100dvh - 146px);min-height:0}
+.project-workspace .report-editor-page>main{width:calc(100% - 32px);max-width:900px;box-sizing:border-box}
+.project-workspace .report-list-heading,.project-workspace .report-list-tools,.project-workspace .report-pagination{flex-wrap:wrap}
+.project-workspace .detail-field-grid,.project-workspace .upload-settings{grid-template-columns:repeat(2,minmax(0,1fr))}
+.project-workspace .detail-field-grid input,.project-workspace .detail-field-grid textarea,.project-workspace .detail-field-grid select{max-width:100%;min-width:0}
+.project-dashboard .metrics{margin-bottom:0;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.project-dashboard .welcome-row h2{font-size:24px}.project-dashboard .metric-card{padding:20px;gap:14px}.project-dashboard .metric-card p{font-size:14px}.project-dashboard .metric-card strong{font-size:30px}.project-dashboard .metric-card small{font-size:12px}.project-dashboard .panel-heading h3{font-size:17px}.project-dashboard .panel-heading p{font-size:12px}.project-dashboard td,.project-dashboard th{font-size:13px;padding:12px}.project-dashboard .featured-card strong{font-size:14px}.project-dashboard .featured-card p{font-size:13px}
+@media(max-width:1100px){.project-workspace .unified-detail-body,.project-workspace .content-detail-layout{grid-template-columns:1fr}.project-workspace .featured-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.project-app{--navigation-width:240px}.project-app.navigation-collapsed{--navigation-width:0px}.project-content{padding:12px}.project-topbar{padding:10px 12px}.project-topbar h1{font-size:18px}.project-topbar>span{display:none}.project-workspace .modal-backdrop,.project-workspace .recommendation-dialog-backdrop,.project-workspace .dashboard-preview-backdrop{left:0;z-index:1200;padding:8px}.project-workspace:has([role=dialog]){isolation:auto;z-index:auto}.communication-dialog{max-height:calc(100dvh - 16px)}.communication-dialog>header{padding:12px}.communication-dialog>header h2{font-size:18px}.dialog-body{padding:12px}.project-workspace .v3-file-list>button{grid-template-columns:48px minmax(60px,1fr) 60px 42px}.project-workspace .v3-file-list>button>span{display:none}.project-workspace .detail-field-grid,.project-workspace .upload-settings{grid-template-columns:1fr}.project-workspace .featured-card-grid{grid-template-columns:1fr}.project-workspace .v3-form-row{grid-template-columns:1fr}.project-workspace .project-module{padding:16px}}
+/* Media previews are also opened through portals outside the project workspace. */
+.quick-content-preview{display:flex;flex-direction:column;padding:0;overflow:hidden;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px)}
+.quick-content-preview>header{position:relative;flex-shrink:0;gap:12px;padding:16px 20px;background:#fff;border-bottom:1px solid #dce3ed;z-index:2}
+.quick-content-preview>header h3{min-width:0;overflow-wrap:anywhere;margin:0;font-size:18px}
+.quick-content-preview>header button{flex-shrink:0;width:40px;height:40px;border:0;border-radius:8px;background:#f2f5fa;font-size:24px;cursor:pointer}
+.quick-preview-body{min-height:0;overflow:auto;padding:16px;overscroll-behavior:contain}
+.quick-preview-body>video,.quick-preview-body>img{display:block;width:100%;max-height:65dvh;object-fit:contain;background:#111827}
+.dashboard-preview,.recommendation-dialog{max-width:100%;min-height:0;max-height:calc(100dvh - 32px)}
+.dashboard-preview-media{min-height:0}.dashboard-preview>header,.recommendation-dialog>header{flex-shrink:0}.dashboard-preview>header h2,.recommendation-dialog>header h2{overflow-wrap:anywhere}
+@media(max-width:760px){.quick-content-preview{max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.project-workspace .version-row{flex-wrap:wrap}.project-workspace .version-row-actions{flex-wrap:wrap}.dashboard-preview>header,.recommendation-dialog>header{padding:12px}.dashboard-preview>header h2,.recommendation-dialog>header h2{font-size:18px}}
+.project-workspace .queue-sidebar{min-height:0;max-height:calc(100dvh - 180px)}

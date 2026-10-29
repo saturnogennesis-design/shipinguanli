@@ -2147,7 +2147,7 @@ function ContentPool({
     if(!detail)return null;
     const editing = !detail.archivedAt && detail.status === "草稿" && detailMode === "edit";
     return (
-      <CenterDialog title="内容详情" closeDisabled={editing} onClose={()=>{setDetailId("");setDraftFile(null);}}>
+      <CenterDialog title="内容详情" closeDisabled={draftUploading||Boolean(draftPreview)} onClose={()=>{if(editing&&!window.confirm("关闭后将放弃未保存的草稿修改，确定关闭吗？"))return;if(editing)cancelDraftEdit();setDetailId("");setDraftFile(null);}}>
         <ContentDetailPanel
           item={detail}
           editable={editing}

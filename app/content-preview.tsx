@@ -73,11 +73,11 @@ export function ContentPreview({code,versionId,title,kind,comment="",label="",su
     </button>
     {hoverEnabled&&hover&&!open&&createPortal(<div ref={popup} style={position} className="content-hover-preview anchored-content-preview" role="button" tabIndex={0} aria-label={`查看${title}详情`} onMouseEnter={hold} onMouseLeave={leave} onFocus={hold} onBlur={leave} onClick={e=>{e.stopPropagation();activate();}} onKeyDown={e=>{if(e.key==="Escape"){setHover(false);e.stopPropagation();}if(e.key==="Enter"||e.key===" "){e.preventDefault();e.stopPropagation();activate();}}}>{cover&&!failed?<img src={cover} alt={title}/>:<div className="preview-placeholder">暂无封面，点击查看内容</div>}<strong>{title}</strong>{summary?<p>{summary}</p>:null}{comment?<p>审核评语：{comment}</p>:null}</div>,document.body)}
     {open&&createPortal(<div className="modal-backdrop" onClick={()=>setOpen(false)}><section className="modal quick-content-preview" role="dialog" aria-modal="true" aria-label={title} onClick={e=>e.stopPropagation()}>
-      <header><h3>{title}</h3><button autoFocus onClick={()=>setOpen(false)} aria-label="关闭预览">×</button></header>
+      <header><h3>{title}</h3><button type="button" autoFocus onClick={()=>setOpen(false)} aria-label="关闭预览">×</button></header><div className="quick-preview-body">
       {error?<p role="alert">{error}</p>:!urls.length?<p>正在加载素材…</p>:kind==="视频"?<video controls preload="metadata" src={urls[0]} onError={()=>setError("视频加载失败或编码不受浏览器支持，请检查原文件")}/>:<><img src={urls[index]} alt={`${title} 第${index+1}张`}/><nav><button disabled={!index} onClick={()=>setIndex(index-1)}>上一张</button><span>{index+1}/{urls.length}</span><button disabled={index===urls.length-1} onClick={()=>setIndex(index+1)}>下一张</button></nav></>}
       {canEditCover&&coverVersion?<label className="cover-pick">补选封面<input type="file" accept="image/jpeg,image/png,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;setCoverNotice("正在生成封面…");const blob=await makeCover(file);if(!blob){setCoverNotice("图片无法读取，请换一张");return;}const response=await fetch(`/api/content-versions/${coverVersion}/cover`,{method:"PUT",headers:{"content-type":"image/jpeg"},body:blob});if(response.ok){setFailed(false);setCoverTick(n=>n+1);setCoverNotice("封面已保存");}else{const data=await response.json();setCoverNotice(data.error??"封面保存失败");}}}/></label>:null}
       {coverNotice?<p role="status">{coverNotice}</p>:null}
       {comment?<p className="quick-review-comment">审核评语：{comment}</p>:null}
-    </section></div>,document.body)}
+    </div></section></div>,document.body)}
   </span>;
 }

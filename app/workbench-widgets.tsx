@@ -114,8 +114,8 @@ function DashboardPreview({ item, versionNumber, onClose, backLabel="返回工�
     return () => { cancelled = true; };
   }, [item.code, item.contentType, versionNumber]);
   return <div className="dashboard-preview-backdrop" onClick={onClose}>
-    <section className="dashboard-preview" onClick={(event) => event.stopPropagation()}>
-      <header><div><small>{item.code}</small><h2>{item.title}</h2><p>{item.uploaderName} · {item.contentType === "video" ? "视频" : "图文"} · V{versionNumber ?? ("latestVersionNumber" in item ? item.latestVersionNumber : item.versionNumber)}</p></div><button onClick={onClose}>×</button></header>
+    <section className="dashboard-preview" role="dialog" aria-modal="true" aria-label={item.title} onClick={(event) => event.stopPropagation()}>
+      <header><div><small>{item.code}</small><h2>{item.title}</h2><p>{item.uploaderName} · {item.contentType === "video" ? "视频" : "图文"} · V{versionNumber ?? ("latestVersionNumber" in item ? item.latestVersionNumber : item.versionNumber)}</p></div><button type="button" aria-label="关闭预览" onClick={onClose}>×</button></header>
       <div className="dashboard-preview-media">
         {urls.length && item.contentType === "video" ? <video controls preload="metadata" src={urls[0]} onError={() => setMessage("视频编码不受当前浏览器支持，或原文件暂时不可读取")} /> : null}
         {urls.length && item.contentType !== "video" ? <div className="dashboard-preview-images">{urls.map((url, index) => <img src={url} alt={`${item.title} 第${index + 1}张`} key={url} />)}</div> : null}
