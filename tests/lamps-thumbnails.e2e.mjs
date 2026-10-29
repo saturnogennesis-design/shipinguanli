@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';import {readFile,writeFile} from 'node:fs/promises';import sharp from 'sharp';
+const base=process.env.ORBIT_E2E_BASE_URL,stateFile=process.env.ORBIT_QA_STATE_FILE;if(!base||!stateFile)throw Error('Isolated service required');const state=JSON.parse(await readFile(stateFile,'utf8'));let cookie=state.adminCookie,projectId=state.a,passed=0;
+async function req(path,body,method=body===undefined?'GET':'POST',status=200){const response=await fetch(base+path,{method,headers:{cookie,...(projectId?{'x-orbit-project-id':String(projectId)}:{}),...(body!==undefined?{'content-type':'application/json'}:{})},body:body===undefined?undefined:JSON.stringify(body)});const raw=await response.text();assert.equal(response.status,status,path+' '+raw);const next=response.headers.get('set-cookie');if(next)cookie=next.split(';')[0];passed++;return JSON.parse(raw);}
+await req('/api/publishing-targets',{id:state.target1,projectId:state.a,name:'十乐主号',status:'active',lampText:'主号',lampColor:'#7c3aed'},'PATCH');
+let target=(await req('/api/publishing')).targets.find(row=>row.id===state.target1);assert.equal(target.lamp_text,'主号');assert.equal(target.lamp_color,'#7c3aed');
+await req('/api/publishing-targets',{id:state.target1,projectId:state.a,name:'十乐主号',status:'active'},'PATCH');target=(await req('/api/publishing-targets')).items.find(row=>row.id===state.target1);assert.equal(target.lamp_color,'#7c3aed');assert.equal(target.lamp_text,'主号');
+for(const invalid of [{lampColor:'red'},{lampText:'一'.repeat(13)}])await req('/api/publishing-targets',{id:state.target1,projectId:state.a,name:'十乐主号',...invalid},'PATCH',400);
+const longName='商品长名称测试：百福临门鸿运开万事顺心如意，春联素材产品展示与截断验证';const product=(await req('/api/product-masters',{name:longName,imageType:'image/png'},'POST',201));
+const bytes=await sharp({create:{width:2400,height:1800,channels:3,background:'#be3044'}}).png().toBuffer();const upload=await fetch(base+product.imageUploadUrl,{method:'PUT',headers:{cookie,'x-orbit-project-id':String(state.a),'content-type':'image/png'},body:bytes});assert.equal(upload.status,200);passed++;
+const imagePath=`/api/product-masters/${product.id}/image?projectId=${state.a}`;
+const thumbnail=await fetch(base+imagePath+'&thumb=1',{headers:{cookie}});assert.equal(thumbnail.status,200);const output=Buffer.from(await thumbnail.arrayBuffer()),meta=await sharp(output).metadata();assert.ok(meta.width<=320&&meta.height<=320);assert.equal(meta.format,'webp');assert.ok(output.length<bytes.length);const etag=thumbnail.headers.get('etag');passed++;
+const cached=await fetch(base+imagePath+'&thumb=1',{headers:{cookie,'if-none-match':etag}});assert.equal(cached.status,304);passed++;
+const original=await fetch(base+imagePath,{headers:{cookie}});assert.deepEqual(Buffer.from(await original.arrayBuffer()),bytes);passed++;
+const foreign=await fetch(base+imagePath.replace('projectId='+state.a,'projectId='+state.b)+'&thumb=1',{headers:{cookie,'if-none-match':etag}});assert.equal(foreign.status,403);passed++;
+projectId=null;await req('/api/auth/login',{username:'target_operator',password:'Publisher-QA-2026!'});projectId=state.a;
+const allowed=await fetch(base+imagePath+'&thumb=1',{headers:{cookie}});assert.equal(allowed.status,200);await allowed.arrayBuffer();passed++;
+await req('/api/publishing-targets',{id:state.target1,projectId:state.a,name:'十乐主号',lampText:'不允许',lampColor:'#ff0000'},'PATCH',403);
+Object.assign(state,{thumbnailProduct:product.id,thumbnailProductName:longName,thumbnailImagePath:imagePath});await writeFile(stateFile,JSON.stringify(state));console.log(JSON.stringify({passed,thumbnailBytes:output.length,originalBytes:bytes.length,cache304:true,projectAuthorizationBeforeCache:true}));

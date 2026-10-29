@@ -1,3 +1,4 @@
+import {imageThumbnail} from '@/lib/image-thumbnail';
 import { and, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { getDb } from "@/db";
@@ -25,6 +26,9 @@ export async function GET(request:Request,context:Context){
  if((claimOnly&&row.set.status!=="admitted")||(row.set.deletedAt&&!canDelete))return fail("素材文件不存在或暂不可领取",404);
  const download=new URL(request.url).searchParams.get("download")==="1";
  if(download)return fail("素材只支持整套压缩包下载，请返回素材套详情操作",400);
- const object=await getMediaStore().get(row.file.storagePath,{range:request.headers});if(!object)return fail("素材文件不存在或存储盘未连接",404);
+ const thumb=new URL(request.url).searchParams.get('thumb')==='1';
+ if(thumb&&!row.file.mimeType.startsWith('image/'))return fail('视频缩略图尚未保存',404);
+ const object=await getMediaStore().get(row.file.storagePath,thumb?undefined:{range:request.headers});if(!object)return fail("素材文件不存在或存储盘未连接",404);
+ if(thumb)return imageThumbnail(request,row.file.storagePath,object);
  const headers=new Headers({"content-type":row.file.mimeType,"cache-control":"private, no-store","x-content-type-options":"nosniff","accept-ranges":"bytes","content-disposition":`${download?"attachment":"inline"}; filename*=UTF-8''${encodeURIComponent(row.file.fileName)}`});object.writeHttpMetadata(headers);if(object.range)headers.set("content-range",`bytes ${object.range.offset}-${object.range.offset+object.range.length-1}/${object.size}`);return new Response(object.body,{status:object.range?206:200,headers});
 }

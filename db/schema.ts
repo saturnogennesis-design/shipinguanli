@@ -136,6 +136,7 @@ export const reportTemplateAssignments = sqliteTable("report_template_assignment
 
 export const contentCategories=sqliteTable("content_categories",{id:integer("id").primaryKey({autoIncrement:true}),projectId:integer("project_id").notNull().references(()=>shortVideoAccounts.id),name:text("name").notNull(),status:text("status").notNull().default("active"),sortOrder:integer("sort_order").notNull().default(0)});
 export const publishingTargets=sqliteTable("publishing_targets",{
+ lampText:text("lamp_text").notNull().default(""),lampColor:text("lamp_color").notNull().default("#2ca576"),
  id:integer("id").primaryKey({autoIncrement:true}),projectId:integer("project_id").notNull().references(()=>shortVideoAccounts.id),name:text("name").notNull(),status:text("status").notNull().default("active"),sortOrder:integer("sort_order").notNull().default(0),...timestamps,
 },t=>[uniqueIndex("idx_publishing_target_project_name").on(t.projectId,t.name)]);
 export const publishingRecords=sqliteTable("publishing_records",{

@@ -1,0 +1,10 @@
+// Synthetic layout fixture only; never accepts a formal database path.
+import {DatabaseSync} from 'node:sqlite';import {readFile,writeFile} from 'node:fs/promises';
+const file=process.env.ORBIT_QA_DB_PATH,stateFile=process.env.ORBIT_QA_STATE_FILE;if(!file?.startsWith('/workspace/qa-')||!stateFile)throw Error('Disposable /workspace/qa-* database required');const state=JSON.parse(await readFile(stateFile,'utf8')),db=new DatabaseSync(file);db.exec('PRAGMA foreign_keys=ON');
+try{
+ const source=db.prepare('SELECT * FROM contents WHERE code=?').get(state.contentCode),version=db.prepare('SELECT * FROM content_versions WHERE content_id=? AND version_number=?').get(source.id,source.latest_version_number);const code='CNT-LAYOUT-LONG-NAME-20261029',title='2026-10-29-百福临门鸿运开，万事顺心如意，长名称应提前换行并在两行后截断显示测试成片';
+ let content=db.prepare('SELECT id FROM contents WHERE code=?').get(code);
+ if(!content){content=db.prepare('INSERT INTO contents(code,title,content_type,product_master_id,account_id,group_id,uploader_user_id,review_status,latest_version_number) VALUES(?,?,?,?,?,?,?,?,1) RETURNING id').get(code,title,'video',state.thumbnailProduct,state.a,source.group_id,source.uploader_user_id,'approved');db.prepare("INSERT INTO content_versions(content_id,version_number,file_name,storage_path,mime_type,file_size,duration_seconds,uploaded_by_user_id,upload_status,review_status) VALUES(?,1,?,?,?,?,?,?,'complete','approved')").run(content.id,version.file_name,version.storage_path,version.mime_type,version.file_size,version.duration_seconds,source.uploader_user_id);}
+ for(const [name,text,color] of [['快手十乐','快手','#f97316'],['小红书【桃符纪旗舰店】','小红书','#dc2626']])if(!db.prepare('SELECT id FROM publishing_targets WHERE project_id=? AND name=?').get(state.a,name))db.prepare('INSERT INTO publishing_targets(project_id,name,lamp_text,lamp_color) VALUES(?,?,?,?)').run(state.a,name,text,color);
+ Object.assign(state,{layoutContentCode:code,layoutContentTitle:title});await writeFile(stateFile,JSON.stringify(state));process.stdout.write('Synthetic long-name layout fixture ready\n');
+}finally{db.close();}

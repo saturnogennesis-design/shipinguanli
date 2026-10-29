@@ -1,3 +1,4 @@
+import {imageThumbnail} from '@/lib/image-thumbnail';
 import {and,eq,isNull} from "drizzle-orm";
 import {getDb} from "@/db";
 import {contents,contentVersions,contentVersionFiles,reviews} from "@/db/schema";
@@ -22,8 +23,8 @@ export async function GET(request:Request,context:Context){
  if(!key){const [first]=await getDb().select({storagePath:contentVersionFiles.storagePath}).from(contentVersionFiles).where(and(eq(contentVersionFiles.versionId,result.record!.id),eq(contentVersionFiles.position,1),eq(contentVersionFiles.uploadStatus,"complete"))).limit(1);key=first?.storagePath??null;}
  if(!key)return new Response(null,{status:404});
  const object=await getMediaStore().get(key);if(!object)return new Response(null,{status:404});
- const headers=new Headers({"cache-control":"private, no-store","x-content-type-options":"nosniff"});object.writeHttpMetadata(headers);
- return new Response(object.body,{headers});
+ return imageThumbnail(request,key,object);
+
 }
 export async function PUT(request:Request,context:Context){
  const result=await authorize(request,context);if(result.response)return result.response;

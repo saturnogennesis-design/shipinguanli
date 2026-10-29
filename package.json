@@ -1,6 +1,6 @@
 {
   "name": "orbit-video-ops",
-  "version": "3.18.0",
+  "version": "3.19.0",
   "private": true,
   "packageManager": "pnpm@11.19.0",
   "engines": {
@@ -18,7 +18,8 @@
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "sharp": "0.34.5"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

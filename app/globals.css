@@ -558,3 +558,43 @@ button,input,select,textarea{font-size:14px!important}
 .publishing-original .publish-detail-section input,.publishing-original .publish-detail-section select,.publishing-original .publish-detail-section textarea{width:100%;max-width:100%;border:1px solid #d9dfeb;border-radius:8px;padding:9px;font:inherit}
 .publishing-original .publish-detail-section textarea{min-height:110px;resize:vertical}
 .content-cover-button>video{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+/* Publishing list stays compact; long names remain available through tooltips and details. */
+.project-workspace table.publishing-list{table-layout:fixed;min-width:1100px}
+.publishing-list .content-title-cell{min-width:0;gap:10px}
+.publishing-list .content-cell{min-width:0;flex:1}
+.publishing-list .publishing-content-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.5;max-width:180px}
+.publishing-list .content-cell>small{display:block;max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.publishing-product{display:flex;flex-direction:column;align-items:center;gap:6px;width:94px;margin:auto}
+.publishing-product .product-image-button,.publishing-product .product-placeholder{width:52px;height:52px}
+.publishing-product>span:last-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;text-align:center;font-size:12px;line-height:1.5;max-width:94px}
+.publishing-list td:last-child button{white-space:nowrap}
+.publishing-lamp{display:inline-flex;flex:0 0 64px;width:64px;height:40px;padding:0;border:0;background:transparent;cursor:pointer;vertical-align:middle}
+.publishing-lamp-face{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:64px;height:40px;padding:3px 5px;border-radius:8px;box-shadow:0 0 0 3px #edf0f3;font-size:12px;font-weight:700;line-height:1.25}
+.publishing-lamp.lit .publishing-lamp-face{box-shadow:0 0 0 3px #e0eee8}
+.publishing-lamp-face>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;text-align:center}
+.publishing-lamp:disabled{cursor:default;opacity:1}.batch-target-lights .publishing-lamp:disabled{opacity:.45}
+.publishing-lamp:focus-visible{outline:2px solid #315fbe;outline-offset:4px;border-radius:8px}
+.publishing-list .target-lights{gap:10px;align-items:center}
+.lamp-config-preview{display:flex;align-items:center;gap:28px;padding:18px;background:#f6f8fb;border:1px solid #e0e6ef;border-radius:8px}
+.lamp-config-preview>div{display:grid;gap:12px;justify-items:center}
+.lamp-config-preview>div>span{font-size:12px;color:#64748b}
+.lamp-config-preview .publishing-lamp{cursor:default}
+.lamp-config-preview input[type=color]{width:64px}
+.thumbnail-image{display:block;position:relative;width:100%;height:100%;min-width:0;overflow:hidden;flex-shrink:0}
+.thumbnail-image>img{display:block;width:100%;height:100%;object-fit:cover}
+.thumbnail-placeholder{display:grid;place-items:center;width:100%;height:100%;background:#edf1f6;color:#8290a3;font-size:16px}
+.v3-real-cover>.thumbnail-image{position:absolute;inset:0}
+.v3-real-cover>.thumbnail-image.v3-product-thumb{inset:auto auto 8px 8px;width:36px;height:36px;border-radius:7px;border:2px solid #fff}
+.v3-file-list>button>.thumbnail-image{width:58px;height:48px;border-radius:7px}
+.v3-file-list>button>.thumbnail-image img{width:100%;height:100%}
+.v3-file-grid .thumbnail-image{aspect-ratio:1;height:auto}
+.v3-product-grid .catalog-thumbnail{aspect-ratio:1;height:auto;width:100%;border-radius:9px}
+.anchored-content-preview>.thumbnail-image{height:200px;width:100%}
+.anchored-content-preview>.thumbnail-image img{height:100%;object-fit:contain}
+/* Long content names must not expand the statistics entry grid beyond its window. */
+.project-statistics .analytics-data-entry .data-form>div{grid-template-columns:repeat(3,minmax(0,1fr))}
+.project-statistics .data-form label{min-width:0}
+.project-statistics .data-form select,.project-statistics .data-form input{min-width:0;max-width:100%;width:100%}
+@media(max-width:760px){.project-statistics .analytics-data-entry .data-form>div{grid-template-columns:1fr}}
+.v3-form input[type=color]{width:96px;max-width:100%;height:40px;padding:4px;cursor:pointer}
+.v3-form input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}

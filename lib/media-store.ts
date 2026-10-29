@@ -23,6 +23,7 @@ export type LocalMediaObject = {
   size: number;
   range?: RangeValue;
   httpEtag: string;
+  customMetadata?: Record<string,string>;
   writeHttpMetadata(headers: Headers): void;
 };
 
@@ -108,6 +109,7 @@ class LocalMediaStore {
     const etag = createHash("sha256").update(`${fileStat.size}:${fileStat.mtimeMs}`).digest("hex");
     return {
       body: Readable.toWeb(stream) as ReadableStream,
+      customMetadata: metadata.customMetadata,
       size: fileStat.size,
       range,
       httpEtag: `"${etag}"`,
