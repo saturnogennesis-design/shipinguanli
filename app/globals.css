@@ -511,8 +511,8 @@ button,input,select,textarea{font-size:14px!important}
 .project-workspace .report-list-heading,.project-workspace .report-list-tools,.project-workspace .report-pagination{flex-wrap:wrap}
 .project-workspace .detail-field-grid,.project-workspace .upload-settings{grid-template-columns:repeat(2,minmax(0,1fr))}
 .project-workspace .detail-field-grid input,.project-workspace .detail-field-grid textarea,.project-workspace .detail-field-grid select{max-width:100%;min-width:0}
-.project-dashboard .metrics{margin-bottom:0;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.project-dashboard .welcome-row h2{font-size:24px}.project-dashboard .metric-card{padding:20px;gap:14px}.project-dashboard .metric-card p{font-size:14px}.project-dashboard .metric-card strong{font-size:30px}.project-dashboard .metric-card small{font-size:12px}.project-dashboard .panel-heading h3{font-size:17px}.project-dashboard .panel-heading p{font-size:12px}.project-dashboard td,.project-dashboard th{font-size:13px;padding:12px}.project-dashboard .featured-card strong{font-size:14px}.project-dashboard .featured-card p{font-size:13px}
+
+
 @media(max-width:1100px){.project-workspace .unified-detail-body,.project-workspace .content-detail-layout{grid-template-columns:1fr}.project-workspace .featured-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.project-app{--navigation-width:240px}.project-app.navigation-collapsed{--navigation-width:0px}.project-content{padding:12px}.project-topbar{padding:10px 12px}.project-topbar h1{font-size:18px}.project-topbar>span{display:none}.project-workspace .modal-backdrop,.project-workspace .recommendation-dialog-backdrop,.project-workspace .dashboard-preview-backdrop{left:0;z-index:1200;padding:8px}.project-workspace:has([role=dialog]){isolation:auto;z-index:auto}.communication-dialog{max-height:calc(100dvh - 16px)}.communication-dialog>header{padding:12px}.communication-dialog>header h2{font-size:18px}.dialog-body{padding:12px}.project-workspace .v3-file-list>button{grid-template-columns:48px minmax(60px,1fr) 60px 42px}.project-workspace .v3-file-list>button>span{display:none}.project-workspace .detail-field-grid,.project-workspace .upload-settings{grid-template-columns:1fr}.project-workspace .featured-card-grid{grid-template-columns:1fr}.project-workspace .v3-form-row{grid-template-columns:1fr}.project-workspace .project-module{padding:16px}}
 /* Media previews are also opened through portals outside the project workspace. */
@@ -526,3 +526,35 @@ button,input,select,textarea{font-size:14px!important}
 .dashboard-preview-media{min-height:0}.dashboard-preview>header,.recommendation-dialog>header{flex-shrink:0}.dashboard-preview>header h2,.recommendation-dialog>header h2{overflow-wrap:anywhere}
 @media(max-width:760px){.quick-content-preview{max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.project-workspace .version-row{flex-wrap:wrap}.project-workspace .version-row-actions{flex-wrap:wrap}.dashboard-preview>header,.recommendation-dialog>header{padding:12px}.dashboard-preview>header h2,.recommendation-dialog>header h2{font-size:18px}}
 .project-workspace .queue-sidebar{min-height:0;max-height:calc(100dvh - 180px)}
+/* The pre-project redesign remains the presentation baseline; retain only viewport repairs. */
+.project-sidebar{background:var(--navy);color:#fff;border-right:0}
+.project-sidebar h1{font-size:18px;font-weight:700}
+.project-sidebar small{color:#8996af}
+.project-sidebar nav button,.project-tabs button{color:#b9c2d4;border-radius:8px;font-size:13px}
+.project-sidebar nav button:hover,.project-tabs button:hover{color:#fff;background:rgba(255,255,255,.06)}
+.project-sidebar nav button.active{color:#fff;background:#2c4dac;box-shadow:inset 3px 0 #88a4ff}
+.project-global-nav,.project-tab-column,.project-system-nav{border-color:rgba(255,255,255,.09)}
+.project-tabs button{background:rgba(255,255,255,.035)}
+.project-tabs button[aria-selected=true]{color:#fff;background:#2c4dac;border-color:#5578f1;box-shadow:inset 3px 0 #88a4ff}
+.project-module-navigation .project-sidebar-name{color:#b9c2d4}
+.project-topbar{background:rgba(255,255,255,.96);min-height:82px;padding:12px 32px}
+.project-content{padding:26px 32px 38px;max-width:1600px;margin:0 auto}
+.project-content>.content-area{padding:0}
+.project-dashboard .metric-card{padding:18px;gap:13px}
+.project-dashboard .metric-card p{font-size:11px}.project-dashboard .metric-card strong{font-size:24px}.project-dashboard .metric-card small{font-size:10px;white-space:normal}
+.project-dashboard .welcome-row h2{font-size:20px}.project-dashboard .welcome-row p{font-size:12px}
+.project-dashboard .panel-heading h3{font-size:14px}.project-dashboard .panel-heading p{font-size:10px}
+.project-dashboard .featured-card strong{font-size:12px}.project-dashboard .featured-card p{font-size:11px}
+@media(max-width:760px){.project-topbar{padding:10px 16px}.project-content{padding:20px 16px}}
+.project-config-tabs{margin-bottom:16px;max-width:100%;overflow:auto}
+.batch-target-lights{padding:12px 16px;flex-wrap:wrap}
+.platform-light.target-account{display:flex;width:auto;height:auto;min-height:34px;gap:8px;cursor:pointer}
+.platform-light.target-account>span{flex-shrink:0}
+.platform-light.target-account small{font-size:12px;color:#657184;white-space:normal;max-width:130px;text-align:left}
+.platform-light.target-account.lit>span{background:#2ca576;filter:none;box-shadow:0 0 0 3px #ddf4eb}
+.platform-light.target-account:disabled{cursor:default;opacity:.6}
+.content-title-cell{display:flex;align-items:center;gap:10px;min-width:170px}
+.publishing-original .publish-detail-section label{display:grid;gap:7px;margin:12px 0}
+.publishing-original .publish-detail-section input,.publishing-original .publish-detail-section select,.publishing-original .publish-detail-section textarea{width:100%;max-width:100%;border:1px solid #d9dfeb;border-radius:8px;padding:9px;font:inherit}
+.publishing-original .publish-detail-section textarea{min-height:110px;resize:vertical}
+.content-cover-button>video{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}

@@ -1,7 +1,7 @@
 import type {DatabaseSync} from 'node:sqlite';
 import {atomicWrite,PublishingConflict} from './publishing-write';
-export function writeTargetPublishing(db:DatabaseSync,input:{projectId:number;contentCode:string;targetId:number;userId:number;expectedRevision:number;published?:boolean;details?:{productMasterId?:number|null;title?:string;body?:string;topics?:string[]}}){
- return atomicWrite(db,()=>{
+function writeRecord(db:DatabaseSync,input:{projectId:number;contentCode:string;targetId:number;userId:number;expectedRevision:number;published?:boolean;details?:{productMasterId?:number|null;title?:string;body?:string;topics?:string[]}},skipPublished=false){
+
   const content=db.prepare("SELECT c.*,v.id AS version_id FROM contents c JOIN content_versions v ON v.content_id=c.id AND v.version_number=c.latest_version_number WHERE c.code=? AND c.account_id=? AND c.review_status='approved' AND c.archived_at IS NULL AND c.deleted_at IS NULL AND v.deleted_at IS NULL AND v.upload_status='complete'").get(input.contentCode,input.projectId);
   if(!content)throw new PublishingConflict('内容已更新、归档或不属于当前项目');
   const target=db.prepare('SELECT * FROM publishing_targets WHERE id=? AND project_id=?').get(input.targetId,input.projectId);
@@ -9,6 +9,7 @@ export function writeTargetPublishing(db:DatabaseSync,input:{projectId:number;co
   if(target.status!=='active'&&input.published!==false)throw new PublishingConflict('该发布目标已停用，不能新增发布或修改资料');
   const old=db.prepare('SELECT * FROM publishing_records WHERE content_id=? AND target_id=?').get(content.id as number,input.targetId);
   if(Number(old?.revision??0)!==input.expectedRevision)throw new PublishingConflict('该目标的发布记录已被其他人员更新，请刷新后重试');
+  if(skipPublished&&old?.published===1)return {ok:true,revision:Number(old.revision),unchanged:true};
   const details=input.details;
   const product=details&&'productMasterId' in details?details.productMasterId??null:old?old.product_master_id:content.product_master_id;
   if(product!=null){
@@ -24,5 +25,11 @@ export function writeTargetPublishing(db:DatabaseSync,input:{projectId:number;co
   const action=input.published===undefined?'details_update':published?'published':'unpublished';
   db.prepare('INSERT INTO publishing_events(record_id,content_id,target_id,operator_user_id,action,details_json) VALUES(?,?,?,?,?,?)').run(id,content.id as number,input.targetId,input.userId,action,JSON.stringify({targetName:target.name,previous:old?{published:old.published,productMasterId:old.product_master_id,title:old.title,body:old.body,topics:old.topics_json}:null,current:{published,productMasterId:product,title,body,topics}}));
   return {ok:true,revision:Number(old?.revision??0)+1,id};
- });
+
+}
+
+type TargetInput=Parameters<typeof writeRecord>[1];
+export function writeTargetPublishing(db:DatabaseSync,input:TargetInput){return atomicWrite(db,()=>writeRecord(db,input));}
+export function writeTargetPublishingBatch(db:DatabaseSync,input:{projectId:number;targetId:number;userId:number;items:{contentCode:string;expectedRevision:number}[]}){
+ return atomicWrite(db,()=>input.items.map(item=>writeRecord(db,{projectId:input.projectId,targetId:input.targetId,userId:input.userId,...item,published:true},true)));
 }

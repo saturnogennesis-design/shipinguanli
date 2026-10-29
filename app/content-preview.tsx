@@ -38,7 +38,8 @@ export async function uploadContentFile(url:string,options:RequestInit){
   }
   return response;
 }
-export function ContentPreview({code,versionId,title,kind,comment="",label="",summary="",hoverEnabled=true,onOpen}:{code:string;versionId?:number;title:string;kind:string;comment?:string;label?:string;summary?:string;hoverEnabled?:boolean;onOpen?:()=>void}){
+export function ContentPreview({code,versionId,title,kind,comment="",label="",summary="",hoverEnabled=true,onOpen,fallbackUrl}:{code:string;versionId?:number;title:string;kind:string;comment?:string;label?:string;summary?:string;hoverEnabled?:boolean;onOpen?:()=>void;fallbackUrl?:string}){
+  const [fallbackFailed,setFallbackFailed]=useState(false);
   const [hover,setHover]=useState(false),[open,setOpen]=useState(false),[failed,setFailed]=useState(false);
   const [urls,setUrls]=useState<string[]>([]),[error,setError]=useState(""),[index,setIndex]=useState(0);
   const [canEditCover,setCanEditCover]=useState(false),[coverVersion,setCoverVersion]=useState<number|undefined>(versionId),[coverTick,setCoverTick]=useState(0),[coverNotice,setCoverNotice]=useState("");
@@ -68,7 +69,7 @@ export function ContentPreview({code,versionId,title,kind,comment="",label="",su
   },[open,code,versionId]);
   return <span ref={root} className="content-preview-trigger">
     <button className="content-cover-button" aria-label={`预览${title}`} onFocus={()=>{if(hoverEnabled){hold();setHover(true);}}} onBlur={leave} onClick={e=>{e.stopPropagation();activate();}}>
-      {cover&&!failed?<img loading="lazy" src={cover} alt={title} onError={()=>setFailed(true)}/>:<span>{kind==="视频"?"▶":"▤"}</span>}
+      {cover&&!failed?<img loading="lazy" src={cover} alt={title} onError={()=>setFailed(true)}/>:fallbackUrl&&kind==="视频"&&!fallbackFailed?<video muted playsInline preload="metadata" src={fallbackUrl+"#t=0.1"} onError={()=>setFallbackFailed(true)}/>:<span>{kind==="视频"?"▶":"▤"}</span>}
       {label?<small>{label}</small>:null}
     </button>
     {hoverEnabled&&hover&&!open&&createPortal(<div ref={popup} style={position} className="content-hover-preview anchored-content-preview" role="button" tabIndex={0} aria-label={`查看${title}详情`} onMouseEnter={hold} onMouseLeave={leave} onFocus={hold} onBlur={leave} onClick={e=>{e.stopPropagation();activate();}} onKeyDown={e=>{if(e.key==="Escape"){setHover(false);e.stopPropagation();}if(e.key==="Enter"||e.key===" "){e.preventDefault();e.stopPropagation();activate();}}}>{cover&&!failed?<img src={cover} alt={title}/>:<div className="preview-placeholder">暂无封面，点击查看内容</div>}<strong>{title}</strong>{summary?<p>{summary}</p>:null}{comment?<p>审核评语：{comment}</p>:null}</div>,document.body)}

@@ -19,13 +19,13 @@ test("renders the local-only authentication gate before the workspace", async ()
   assert.match(html, /<title>内容中台｜公司短视频管理平台<\/title>/i);
   assert.match(html, /正在连接本地服务/);
   assert.match(html, /仅限公司内网访问/);
-  const source = (await Promise.all(["../app/project-shell.tsx","../app/project-dashboard.tsx"].map(path=>readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
+  const source = (await Promise.all(["../app/project-shell.tsx","../app/project-dashboard.tsx","../app/project-management.tsx"].map(path=>readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
   assert.match(source, /我的待办/);
   assert.match(source, /审核中心/);
   assert.match(source, /发布管理/);
   assert.match(source, /版本管理/);
   assert.match(source, /项目管理/);
-  assert.match(source, /发布目标账号管理/);
+  assert.match(source, /发布目标账号/);
   const auth = await readFile(new URL("../app/auth-gate.tsx", import.meta.url), "utf8");
   assert.match(auth, /退出并切换账号/);
   assert.match(auth, /fetch\("\/api\/auth\/logout", \{ method: "POST" \}\)/);
@@ -233,7 +233,7 @@ test("manages deleted test content through a recoverable recycle bin", async () 
 });
 
 test("binds neutral recommendation cases to review decisions and versions", async () => {
-  const page = (await Promise.all(["../app/project-shell.tsx","../app/project-dashboard.tsx"].map(path=>readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
+  const page = (await Promise.all(["../app/project-shell.tsx","../app/project-dashboard.tsx","../app/project-management.tsx"].map(path=>readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
   const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
   const contentRoute = await readFile(new URL("../app/api/contents/[id]/route.ts", import.meta.url), "utf8");
   const dashboardRoute = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
@@ -272,7 +272,7 @@ test("keeps the Windows server alive without PowerShell stream piping", async ()
 });
 
 test("applies V1.6 permission, owner-version, dashboard, and unified-filter rules", async () => {
-  const page = (await Promise.all(["../app/project-shell.tsx","../app/project-dashboard.tsx"].map(path=>readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
+  const page = (await Promise.all(["../app/project-shell.tsx","../app/project-dashboard.tsx","../app/project-management.tsx"].map(path=>readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
   const modules = await readFile(new URL("../app/modules.tsx", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8");
   const versions = await readFile(new URL("../app/api/contents/[id]/versions/route.ts", import.meta.url), "utf8");

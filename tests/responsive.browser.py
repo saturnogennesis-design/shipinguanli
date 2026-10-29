@@ -48,7 +48,7 @@ with sync_playwright() as p:
  page.once('dialog',lambda d:d.accept());content.get_by_role('button',name='关闭弹窗').click();assert content.count()==0;passed+=1
  page.get_by_role('button',name='版本管理',exact=True).click();page.wait_for_load_state('networkidle');page.get_by_role('button',name='查看版本',exact=True).first.click();page.get_by_role('heading',name='文件版本记录',exact=True).wait_for();assert page.locator('.version-detail-history').bounding_box()['width']<=page.locator('.project-workspace').bounding_box()['width'];page.locator('.drilldown-header button').first.click();passed+=1
  # Every exposed module is audited at desktop and smaller laptop size.
- modules=['项目工作台','素材中心','产品库','内容小组','内容池','审核中心','发布管理','版本管理','业务分类','数据统计','通知公告','工作报备','项目管理','发布目标账号管理','组织与权限','报备模板','配置中心','操作日志']
+ modules=['项目工作台','素材中心','产品库','内容池','审核中心','发布管理','版本管理','数据统计','通知公告','工作报备','项目管理','组织与权限','报备模板','配置中心','操作日志']
  for width,height in [(1440,900),(1024,720)]:
   page.set_viewport_size({'width':width,'height':height})
   for module in modules:
@@ -59,8 +59,8 @@ with sync_playwright() as p:
  # A wide table has an immediately reachable horizontal rail and synchronizes with it.
  page.get_by_role('button',name='发布管理',exact=True).click();page.get_by_role('button',name='收起导航',exact=True).click();page.set_viewport_size({'width':540,'height':760});page.wait_for_timeout(250)
  rail=page.get_by_role('region',name='当前表格横向滚动');rail.wait_for();assert rail.bounding_box()['y']<760;rail.evaluate('(el)=>el.scrollLeft=el.scrollWidth');page.wait_for_timeout(100);assert page.locator('.project-content .table-wrap').evaluate('(el)=>el.scrollLeft>0');passed+=1
- page.get_by_role('button',name='十乐测试成片',exact=True).click();small=page.get_by_role('dialog',name='十乐测试成片');small.wait_for();box=small.bounding_box();assert box['x']>=0 and box['x']+box['width']<=542 and box['height']<=746;passed+=1
- small.get_by_role('button',name='关闭弹窗').click();assert small.count()==0;passed+=1
+ page.get_by_role('button',name='十乐测试成片',exact=True).click();small=page.locator('.publishing-original .unified-detail');small.wait_for();box=small.bounding_box();assert box['x']>=0 and box['x']+box['width']<=542;passed+=1
+ small.locator('.back-square').click();assert small.count()==0;passed+=1
  page.set_viewport_size({'width':1440,'height':900});page.get_by_role('button',name='展开导航',exact=True).click();page.get_by_role('button',name='项目工作台',exact=True).click();page.get_by_role('heading',name='我的待办',exact=True).wait_for();page.screenshot(path=str(out/'workbench.png'))
  assert not errors,errors
  print(json.dumps({'passed':passed,'pageErrors':errors}));browser.close()

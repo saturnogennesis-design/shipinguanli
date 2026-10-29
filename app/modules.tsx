@@ -173,7 +173,7 @@ function ContentCoverThumb({url,kind}:{url?:string|null;kind:string}){
   return <div className="publish-content-visual">{url&&!failed?<img loading="lazy" src={url} alt="" onError={()=>setFailed(true)}/>:<span className="publish-cover-placeholder">{kind==="视频"?"▶":"▤"}</span>}</div>;
 }
 
-function ModuleHeader({
+export function ModuleHeader({
   title,
   description,
   action,
@@ -321,7 +321,7 @@ function matchesSmartRule<T>(row: T, rule: SmartFilterRule, field?: SmartFilterF
   if (rule.operator === "neq") return values.every((item) => item !== expected);
   return values.some((item) => item === expected);
 }
-function applySmartFilters<T>(rows: T[], rules: SmartFilterRule[], fields: SmartFilterField<T>[]) {
+export function applySmartFilters<T>(rows: T[], rules: SmartFilterRule[], fields: SmartFilterField<T>[]) {
   if (!rules.length) return rows;
   const fieldMap = new Map(fields.map((field) => [field.key, field]));
   const andRules = rules.filter((rule) => rule.join === "and");
@@ -685,7 +685,7 @@ const initialVersionGroups: VersionGroup[] = [
   },
 ];
 
-function ContentDetailPanel({
+export function ContentDetailPanel({
   item,
   editable = false,
   navigate,

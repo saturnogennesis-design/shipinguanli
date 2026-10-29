@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+const base=process.env.ORBIT_E2E_BASE_URL,stateFile=process.env.ORBIT_QA_STATE_FILE;if(!base||!stateFile)throw Error('An isolated server and synthetic state file are required');
+const state=JSON.parse(await readFile(stateFile,'utf8'));let cookie=state.adminCookie,projectId=state.a,passed=0;
+async function req(path,body,method=body===undefined?'GET':'POST',status=200){const binary=body instanceof Uint8Array;const response=await fetch(base+path,{method,headers:{cookie,...(projectId?{'x-orbit-project-id':String(projectId)}:{}),...(body!==undefined&&!binary?{'content-type':'application/json'}:{})},body:body===undefined?undefined:binary?body:JSON.stringify(body)});const raw=await response.text();assert.equal(response.status,status,path+' '+raw);const next=response.headers.get('set-cookie');if(next)cookie=next.split(';')[0];passed++;try{return JSON.parse(raw);}catch{return raw;}}
+// Global maintenance selects a project explicitly, without changing the business workspace.
+projectId=null;const category=(await req(`/api/projects/${state.b}/categories`,{name:'配置验收分类'},'POST',201)).id;
+assert.ok((await req(`/api/projects/${state.b}/categories`)).items.some(row=>row.id===category));assert.ok(!(await req(`/api/projects/${state.a}/categories`)).items.some(row=>row.id===category));
+await req(`/api/projects/${state.a}/categories`,{id:category,name:'不能跨项目改分类'},'PATCH',403);
+const role=(await req('/api/admin',{entity:'role',name:'仅项目配置验收',permissions:['business.accounts']},'POST',201)).id;
+await req('/api/admin',{entity:'user',username:'project_config_qa',displayName:'项目配置员',password:'ProjectConfig-QA-2026!',roleId:role},'POST',201);
+await req('/api/auth/login',{username:'project_config_qa',password:'ProjectConfig-QA-2026!'});
+assert.equal((await req('/api/projects')).projects.length,0);await req(`/api/projects/${state.b}/categories`);
+await req(`/api/projects/${state.b}/categories`,{id:category,name:'配置验收分类',status:'active'},'PATCH');projectId=state.b;await req('/api/contents',undefined,'GET',403);
+projectId=null;await req('/api/auth/login',{username:'target_operator',password:'Publisher-QA-2026!'});await req(`/api/projects/${state.a}/categories`,undefined,'GET',403);
+cookie=state.adminCookie;projectId=state.a;
+const group=(await req('/api/groups?scope=upload')).groups[0].id,bytes=new Uint8Array(await readFile(process.env.ORBIT_QA_VIDEO));
+const created=(await req('/api/contents',{groupId:group,items:[{title:'批量点亮验收第二条',contentType:'video',productMasterId:state.productA,categoryId:state.catA,files:[{fileName:'batch.mp4',mimeType:'video/mp4',fileSize:bytes.length}]}]},'POST',201)).items[0];
+await req(created.uploads[0].uploadUrl,bytes,'PUT');await req('/api/contents/'+created.contentCode,{action:'submit'},'PATCH');
+const session=(await req('/api/review-sessions',{contentCodes:[created.contentCode]},'POST',201)).sessionId,queue=await req('/api/review-sessions/'+session);
+await req('/api/review-sessions/'+session,{queueItemId:queue.items[0].queueItemId,decision:'approved',comment:'批量发布验收'},'PATCH');await req('/api/review-sessions/'+session,{});
+let data=await req('/api/publishing');const first=data.contents.find(row=>row.code===state.contentCode),old=first.records.find(row=>row.target_id===state.target2);
+const items=[{contentCode:created.contentCode,expectedRevision:0},{contentCode:state.contentCode,expectedRevision:old.revision}];
+await req('/api/publishing/batch',{targetId:state.target2,items:[items[0],{...items[1],expectedRevision:99}]},'POST',409);
+data=await req('/api/publishing');assert.equal(data.contents.find(row=>row.code===created.contentCode).records.length,0);
+await req('/api/publishing/batch',{targetId:state.target2,items},'POST');data=await req('/api/publishing');assert.ok(data.contents.filter(row=>items.some(item=>item.contentCode===row.code)).every(row=>row.records.some(record=>record.target_id===state.target2&&record.published)));
+await req('/api/publishing/batch',{targetId:state.target2,items:[items[0],items[0]]},'POST',400);
+const foreignTarget=(await req('/api/publishing-targets',{projectId:state.b,name:'项目B配置验收目标'},'POST',201)).id;
+await req('/api/publishing/batch',{targetId:foreignTarget,items:[{contentCode:created.contentCode,expectedRevision:0}]},'POST',409);
+const replacement=(await req('/api/product-masters',{name:'仅发布资料更换的商品'},'POST',201)).id;
+data=await req('/api/publishing');const original=data.contents.find(row=>row.code===state.contentCode),record=original.records.find(row=>row.target_id===state.target1);
+await req('/api/publishing/'+state.contentCode,{targetId:state.target1,expectedRevision:record.revision,productMasterId:replacement,title:'目标标题',body:'目标文案',topics:[]},'PUT');
+assert.equal((await req('/api/contents')).contents.find(row=>row.code===state.contentCode).productMasterId,state.productA);
+Object.assign(state,{secondContentCode:created.contentCode,replacementProduct:replacement,configCategory:category});await writeFile(stateFile,JSON.stringify(state));
+console.log(JSON.stringify({passed,batchAtomic:true,globalConfigWithoutBusinessAccess:true,sourceProductUnchanged:true}));

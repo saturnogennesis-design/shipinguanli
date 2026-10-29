@@ -7,7 +7,7 @@ export async function GET(request:Request){
  const db=getLocalDatabase(),projectId=auth.user.projectId!;
  const targets=db.prepare('SELECT * FROM publishing_targets WHERE project_id=? ORDER BY sort_order,id').all(projectId);
  const rows=db.prepare(`SELECT c.id,c.code,c.title,c.content_type AS contentType,c.product_master_id AS productMasterId,p.name AS productName,c.category_id AS categoryId,cat.name AS categoryName,
- u.display_name AS uploaderName,v.id AS versionId,v.version_number AS versionNumber,v.file_size AS fileSize
+ c.uploader_user_id AS uploaderUserId,u.display_name AS uploaderName,u.content_color AS contentColor,c.remark,c.visibility,c.created_at AS createdAt,c.updated_at AS updatedAt,v.id AS versionId,v.version_number AS versionNumber,v.file_size AS fileSize,v.duration_seconds AS durationSeconds
  FROM contents c JOIN content_versions v ON v.content_id=c.id AND v.version_number=c.latest_version_number
  JOIN users u ON u.id=c.uploader_user_id LEFT JOIN product_masters p ON p.id=c.product_master_id LEFT JOIN content_categories cat ON cat.id=c.category_id
  WHERE c.account_id=? AND c.review_status='approved' AND c.deleted_at IS NULL AND c.archived_at IS NULL AND v.upload_status='complete' AND v.deleted_at IS NULL ORDER BY c.updated_at DESC,c.id DESC`).all(projectId);

@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import {registerHooks} from 'node:module';
 registerHooks({resolve(specifier,context,next){try{return next(specifier,context);}catch(error){if(specifier.startsWith('.')&&!/\.[a-z]+$/.test(specifier))return next(specifier+'.ts',context);throw error;}}});
-const {writeTargetPublishing}=await import('../lib/target-publishing.ts');
+const {writeTargetPublishing,writeTargetPublishingBatch}=await import('../lib/target-publishing.ts');
 const {visibleProjectIds,bindProjectRequest}=await import('../lib/project-access.ts');
 const dir=new URL('../drizzle/',import.meta.url);
 function fixture(t){
@@ -45,3 +45,33 @@ test('per-request project checks reject forged headers and cross-project object 
 });
 
 test('an existing source product can remain linked after it is disabled without blocking publishing',t=>{const {db,project}=fixture(t);db.exec("UPDATE product_masters SET status='inactive' WHERE id=100");write(db,project);assert.equal(db.prepare('SELECT published FROM publishing_records').get().published,1);assert.equal(db.prepare('SELECT product_master_id FROM publishing_records').get().product_master_id,100);});
+
+test('batch lights share one transaction, retain product details and avoid duplicate logs for lit rows',t=>{
+ const {db,project}=fixture(t);
+ write(db,project,{published:false,details:{productMasterId:null,title:'独立发布标题'}});
+ const result=writeTargetPublishingBatch(db,{projectId:project,userId:101,targetId:100,items:[{contentCode:'A',expectedRevision:1}]});
+ assert.equal(result[0].revision,2);assert.equal(db.prepare('SELECT product_master_id FROM publishing_records').get().product_master_id,null);
+ const count=db.prepare('SELECT count(*) n FROM publishing_events').get().n;
+ assert.equal(writeTargetPublishingBatch(db,{projectId:project,userId:101,targetId:100,items:[{contentCode:'A',expectedRevision:2}]})[0].unchanged,true);
+ assert.equal(db.prepare('SELECT count(*) n FROM publishing_events').get().n,count);
+ assert.equal(db.prepare('SELECT product_master_id FROM contents').get().product_master_id,100);
+});
+test('batch stale revisions or foreign content roll back every previous record and log',t=>{
+ const {db,project}=fixture(t);
+ for(const item of [{contentCode:'A',expectedRevision:99},{contentCode:'missing',expectedRevision:0}]){
+  assert.throws(()=>writeTargetPublishingBatch(db,{projectId:project,userId:100,targetId:100,items:[{contentCode:'A',expectedRevision:0},item]}));
+  assert.equal(db.prepare('SELECT count(*) n FROM publishing_records').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM publishing_events').get().n,0);
+ }
+});
+
+test('batch updates two contents together and invalid targets roll back without events',t=>{
+ const {db,project}=fixture(t);
+ db.exec(`INSERT INTO contents(id,code,title,content_type,account_id,group_id,uploader_user_id,review_status) SELECT 101,'A2','第二条','video',account_id,group_id,uploader_user_id,'approved' FROM contents WHERE id=100;
+ INSERT INTO content_versions(id,content_id,version_number,file_name,storage_path,mime_type,file_size,uploaded_by_user_id,upload_status) VALUES(101,101,1,'b.mp4','b.mp4','video/mp4',4,100,'complete');`);
+ const items=[{contentCode:'A',expectedRevision:0},{contentCode:'A2',expectedRevision:0}];
+ assert.throws(()=>writeTargetPublishingBatch(db,{projectId:project,userId:100,targetId:200,items}));
+ assert.equal(db.prepare('SELECT count(*) n FROM publishing_events').get().n,0);
+ const result=writeTargetPublishingBatch(db,{projectId:project,userId:101,targetId:100,items});
+ assert.equal(result.length,2);assert.equal(db.prepare('SELECT count(*) n FROM publishing_records WHERE published=1').get().n,2);
+ assert.equal(db.prepare('SELECT count(*) n FROM publishing_events WHERE operator_user_id=101').get().n,2);
+});
