@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import sharp from 'sharp';
+const base=process.env.ORBIT_E2E_BASE_URL,stateFile=process.env.ORBIT_QA_STATE_FILE;if(!base||!stateFile)throw Error('Isolated QA server and state required');
+const state=JSON.parse(await readFile(stateFile,'utf8'));let cookie=state.adminCookie,projectId=null,passed=0;
+async function req(path,body,method=body===undefined?'GET':'POST',status=200){const response=await fetch(base+path,{method,headers:{cookie,...(projectId?{'x-orbit-project-id':String(projectId)}:{}),...(body!==undefined?{'content-type':'application/json'}:{})},body:body===undefined?undefined:JSON.stringify(body)});const raw=await response.text();assert.equal(response.status,status,path+' '+raw);passed++;if(response.headers.get('set-cookie'))cookie=response.headers.get('set-cookie').split(';')[0];return raw?JSON.parse(raw):null;}
+const c=(await req('/api/projects',{name:'跨境制作验收',projectType:'cross_border'},'POST',201)).id;
+const d=(await req('/api/projects',{name:'跨境隔离验收',projectType:'cross_border'},'POST',201)).id;
+await req('/api/projects',{name:'无效类型',projectType:'other'},'POST',400);
+await req('/api/projects',{id:c,name:'跨境制作验收',projectType:'short_video'},'PATCH',409);
+const projects=await req('/api/projects');assert.equal(projects.projects.find(row=>row.id===state.a).projectType,'short_video');assert.equal(projects.projects.find(row=>row.id===c).projectType,'cross_border');
+const role=(await req('/api/admin',{entity:'role',name:'跨境制作员工',permissions:['cross.view','cross.create'],dataScope:'self'},'POST',201)).id;
+const maker=(await req('/api/admin',{entity:'user',username:'cross_maker',displayName:'母版制作甲',password:'Cross-Maker-QA-2026!',roleId:role,accountResponsibilities:{materialUpload:[c]}},'POST',201)).id;
+const role2=(await req('/api/admin',{entity:'role',name:'跨境审核员工',permissions:['cross.view','cross.review','cross.download'],dataScope:'self'},'POST',201)).id;
+const reviewer=(await req('/api/admin',{entity:'user',username:'cross_review',displayName:'成品审核乙',password:'Cross-Review-QA-2026!',roleId:role2,accountResponsibilities:{materialUpload:[c]}},'POST',201)).id;
+const maker2=(await req('/api/admin',{entity:'user',username:'cross_package',displayName:'产品包制作丙',password:'Cross-Package-QA-2026!',roleId:role,accountResponsibilities:{materialUpload:[c]}},'POST',201)).id;
+projectId=c;
+await req('/api/contents',undefined,'GET',409);
+const clue=(await req('/api/cross-records',{kind:'clue',title:'戒指参考线索'},'POST',201)).id;
+async function row(id){return (await req('/api/cross-records?id='+id)).row;}
+async function change(id,action,body={},status=200){const current=await row(id);return req('/api/cross-records/'+id,{action,revision:current.revision,...body},'PATCH',status);}
+await change(clue,'save',{data:{source:'内部参考',description:'银色戒指'}});await change(clue,'submit');
+const mother=(await req('/api/cross-records',{kind:'mother',parentId:clue,title:'戒指确认母版'},'POST',201)).id;
+await req('/api/cross-records',{kind:'package',parentId:clue,title:'错误直接关联'},'POST',400);
+await req('/api/cross-records',{kind:'package',parentId:mother,title:'未通过母版'},'POST',400);
+await change(mother,'submit',{},409);
+await change(mother,'save',{makerId:maker,data:{facts:'材质银，尺寸18mm'}});
+const png=await sharp({create:{width:1600,height:1200,channels:3,background:'#aabbcc'}}).png().toBuffer();
+async function upload(id){const form=new FormData();form.append('file',new File([png],'参考原图.png',{type:'image/png'}));const response=await fetch(base+'/api/cross-records/'+id+'/files',{method:'POST',headers:{cookie,'x-orbit-project-id':String(projectId)},body:form});assert.equal(response.status,201,await response.clone().text());passed++;return (await response.json()).id;}
+const motherFile=await upload(mother);await change(mother,'submit',{submitNote:'请检查尺寸'});
+await change(mother,'save',{title:'不能改锁定版本'},409);
+await change(mother,'reject',{reason:''},409);await change(mother,'reject',{reason:'第1张图标注不清晰'});
+await change(mother,'save',{data:{facts:'材质银，尺寸18mm，已补充标注'}});await change(mother,'submit');await change(mother,'approve');
+let detail=await req('/api/cross-records?id='+mother);assert.equal(detail.versions.length,2);assert.equal(JSON.parse(detail.versions[0].snapshot_json).makerId,maker);assert.equal(detail.versions[0].submitterName,'项目验收管理员');
+const pack=(await req('/api/cross-records',{kind:'package',parentId:mother,title:'戒指成品资料'},'POST',201)).id;
+await req('/api/cross-records/'+pack+'/delivery',undefined,'GET',409);
+await upload(pack);await change(pack,'save',{makerId:maker2,data:{productTitle:'Silver Ring',tags:'silver,ring',description:'Handmade silver ring.',remark:'内部中文审核说明'}});await change(pack,'submit');await change(pack,'approve');
+const download=await fetch(base+`/api/cross-records/${pack}/delivery?projectId=${c}`,{headers:{cookie}});assert.equal(download.status,200);await writeFile('/workspace/qa-cross/delivery.zip',new Uint8Array(await download.arrayBuffer()));passed++;
+const image=await fetch(base+`/api/cross-records/files/${motherFile}?projectId=${c}&thumb=1`,{headers:{cookie}});assert.equal(image.status,200);const etag=image.headers.get('etag');const meta=await sharp(new Uint8Array(await image.arrayBuffer())).metadata();assert.ok(meta.width<=320&&meta.height<=320);passed++;
+const notModified=await fetch(base+`/api/cross-records/files/${motherFile}?projectId=${c}&thumb=1`,{headers:{cookie,'if-none-match':etag}});assert.equal(notModified.status,304);passed++;
+projectId=d;assert.equal((await req('/api/cross-records')).items.length,0);await req('/api/cross-records?id='+mother,undefined,'GET',404);await req('/api/cross-records/'+mother,{action:'approve',revision:1},'PATCH',404);await req(`/api/cross-records/files/${motherFile}`,undefined,'GET',404);await req('/api/cross-records',{kind:'mother',parentId:clue,title:'跨项目引用'},'POST',400);
+projectId=state.a;await req('/api/cross-records',undefined,'GET',409);
+projectId=null;await req('/api/auth/login',{username:'cross_maker',password:'Cross-Maker-QA-2026!'});projectId=c;
+assert.equal((await req('/api/cross-records')).access.canReview,false);await change(pack,'revise',{},403);await change(mother,'approve',{},403);await req('/api/cross-records/'+pack+'/delivery',undefined,'GET',403);
+const own=(await req('/api/cross-records',{kind:'mother',parentId:clue,title:'制作员工自己的母版'},'POST',201)).id;await change(own,'save',{makerId:reviewer},403);await upload(own);await change(own,'submit');
+projectId=d;await req('/api/cross-records',undefined,'GET',403);
+projectId=null;await req('/api/auth/login',{username:'cross_review',password:'Cross-Review-QA-2026!'});projectId=c;await change(own,'approve');
+cookie=state.adminCookie;assert.ok((await req('/api/audit-logs')).logs.some(log=>log.action==='cross.approve'));await change(mother,'revise');await change(mother,'save',{title:'母版修订草稿'});detail=await req('/api/cross-records?id='+pack);assert.equal(JSON.parse(detail.versions[0].snapshot_json).parentVersion,2);assert.equal(JSON.parse(detail.versions[0].snapshot_json).parentTitle,'戒指确认母版');assert.equal(detail.reference.title,'戒指确认母版');assert.equal(detail.referenceVersion,2);
+Object.assign(state,{c,d,clue,mother,pack,maker,reviewer,own,motherFile});await writeFile(stateFile,JSON.stringify(state));
+console.log(JSON.stringify({passed,chain:true,attribution:true,immutableVersions:true,projectIsolation:true,permissions:true,delivery:true,thumbnails:true}));

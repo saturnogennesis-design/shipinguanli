@@ -10,7 +10,7 @@ export function visibleProjectIds(db:DatabaseSync,user:AuthUser):number[]{
  EXISTS(SELECT 1 FROM user_group_responsibilities r WHERE r.group_id=g.id AND r.user_id=?))))`)
  .all(user.id,user.primaryGroupId,user.id,user.id,user.id).map(row=>Number(row.id));
 }
-const roots=new Set(['contents','content-versions','content-version-files','material-sets','material-files','materials','product-masters','reviews','review-sessions','versions','publishing','analytics','dashboard','groups','business-data','content-categories','filters']);
+const roots=new Set(['cross-records','contents','content-versions','content-version-files','material-sets','material-files','materials','product-masters','reviews','review-sessions','versions','publishing','analytics','dashboard','groups','business-data','content-categories','filters']);
 export function isProjectPath(path:string){return roots.has(path.split('/')[2]??'');}
 export async function bindProjectRequest(db:DatabaseSync,request:Request,user:AuthUser):Promise<Response|null>{
  const url=new URL(request.url);if(!isProjectPath(url.pathname))return null;
@@ -19,6 +19,9 @@ export async function bindProjectRequest(db:DatabaseSync,request:Request,user:Au
  if(!Number.isSafeInteger(id)||id<=0)return Response.json({error:'请先进入一个项目'},{status:409});
  if(!visibleProjectIds(db,user).includes(id))return Response.json({error:'没有访问该项目的权限'},{status:403});
  user.projectId=id;
+ const cross=db.prepare('SELECT project_type FROM short_video_accounts WHERE id=?').get(id)?.project_type==='cross_border';
+ const rootName=url.pathname.split('/')[2];
+ if(cross&&!['cross-records','content-categories','groups','filters'].includes(rootName))return Response.json({error:'当前项目请使用线索、母版和产品包功能'},{status:409});
  const groups=db.prepare("SELECT id FROM content_groups WHERE account_id=? AND status='active'").all(id).map(row=>Number(row.id));
  user.groupScopes=Object.fromEntries(Object.entries(user.groupScopes).map(([key,values])=>[key,values.filter(value=>groups.includes(value))]));
  if(!groups.includes(user.primaryGroupId??0))user.primaryGroupId=null;

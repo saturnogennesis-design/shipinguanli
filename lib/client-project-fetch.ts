@@ -1,7 +1,7 @@
 "use client";
 import { readBusinessContext } from "@/app/business-context";
 let installed=false;
-const roots=new Set(['contents','content-versions','content-version-files','material-sets','material-files','materials','product-masters','reviews','review-sessions','versions','publishing','analytics','dashboard','groups','business-data','content-categories','filters']);
+const roots=new Set(['cross-records','contents','content-versions','content-version-files','material-sets','material-files','materials','product-masters','reviews','review-sessions','versions','publishing','analytics','dashboard','groups','business-data','content-categories','filters']);
 export function installProjectFetch(){
  if(installed||typeof window==='undefined')return;installed=true;
  const original=window.fetch.bind(window);

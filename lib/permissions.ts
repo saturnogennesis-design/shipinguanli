@@ -2,6 +2,13 @@ export type PermissionItem = { key:string; label:string; description:string; hig
 export type PermissionGroup = { key:string; label:string; permissions:PermissionItem[] };
 
 export const permissionGroups:PermissionGroup[] = [
+  {key:'cross',label:'跨境项目',permissions:[
+    {key:'cross.view',label:'查看跨境资料',description:'查看获授权跨境项目中的线索、母版和产品包'},
+    {key:'cross.create',label:'制作与提交资料',description:'新建资料、维护本人负责的草稿并提交审核'},
+    {key:'cross.review',label:'审核跨境资料',description:'确认母版、审核产品包并填写退回意见',highRisk:true},
+    {key:'cross.assign',label:'指定制作人',description:'维护项目内资料并指定获授权的制作人',highRisk:true},
+    {key:'cross.download',label:'下载交付包',description:'下载审核通过的产品包交付文件',highRisk:true},
+  ]},
   {key:"asset",label:"素材中心",permissions:[
     {key:"asset.view",label:"查看素材",description:"查看指定给本人的素材，下载另受素材设置约束"},
     {key:"asset.upload",label:"上传与维护素材",description:"按产品和项目上传、修改本人负责的素材套"},
