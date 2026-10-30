@@ -5,7 +5,7 @@ import {writeAudit} from '@/lib/audit';
 export async function GET(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;const db=getLocalDatabase(),ids=visibleProjectIds(db,auth.user),canManage=hasPermission(auth.user,'business.accounts');
  const rows=db.prepare('SELECT t.*,p.name AS projectName FROM publishing_targets t JOIN short_video_accounts p ON p.id=t.project_id ORDER BY t.project_id,t.sort_order,t.id').all();
- return Response.json({items:canManage?rows:rows.filter(row=>ids.includes(Number(row.project_id))),canManage});
+ return Response.json({items:rows.filter(row=>ids.includes(Number(row.project_id))),canManage});
 }
 export async function POST(request:Request){return save(request);}
 export async function PATCH(request:Request){return save(request);}
@@ -13,6 +13,7 @@ async function save(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;if(!hasPermission(auth.user,'business.accounts'))return Response.json({error:'没有发布目标配置权限'},{status:403});
  const body=await request.json().catch(()=>null),projectId=Number(body?.projectId),name=String(body?.name??'').trim().slice(0,100),db=getLocalDatabase();
  if(!name||!db.prepare("SELECT id FROM short_video_accounts WHERE id=? AND status='active'").get(projectId))return Response.json({error:'请选择有效项目并填写目标账号名称'},{status:400});
+ if(!visibleProjectIds(db,auth.user).includes(projectId))return Response.json({error:'没有项目访问权限'},{status:403});
  const lampText=body.lampText??body.lamp_text,lampColor=body.lampColor??body.lamp_color;
  if((lampText!==undefined&&(typeof lampText!=='string'||lampText.trim().length>12))||(lampColor!==undefined&&(typeof lampColor!=='string'||!/^#[0-9a-f]{6}$/i.test(lampColor))))return Response.json({error:'灯内文字最多12个字符，颜色请选择有效的六位色值'},{status:400});
  let id=Number(body.id);

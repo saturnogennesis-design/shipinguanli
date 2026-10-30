@@ -23,7 +23,8 @@ export function ProjectShell(){
  useEffect(()=>{const frame=requestAnimationFrame(()=>{if(window.matchMedia('(max-width:760px)').matches)setCollapsed(true);});return()=>cancelAnimationFrame(frame);},[]);
  const [icons,setIcons]=useState<Record<string,string>>({});
  const refresh=useCallback(async()=>{const [data,auth]=await Promise.all([projectApi('/api/projects'),projectApi('/api/auth/me')]);setProjects(data.projects);setUser(auth.user);const current=readBusinessContext();if(current&&!data.projects.some((project:Project)=>project.id===current.accountId)){clearBusinessContext();setNav('系统首页');setEpoch(value=>value+1);}},[]);
- useEffect(()=>{const first=setTimeout(()=>void refresh().catch(error=>setError(error.message)),0);const timer=setInterval(()=>void refresh().catch(()=>{}),30000);return()=>{clearTimeout(first);clearInterval(timer);};},[refresh]);
+ useEffect(()=>{const first=setTimeout(()=>void refresh().catch(error=>setError(error.message)),0);const timer=setInterval(()=>void refresh().catch(()=>{}),5000);return()=>{clearTimeout(first);clearInterval(timer);};},[refresh]);
+ useEffect(()=>{const revoke=()=>{clearBusinessContext();setNav('系统首页');setTargetCode('');setNoticeTarget(null);setEpoch(value=>value+1);setMessage('项目访问资格已取消');setMessageTone('error');};window.addEventListener('orbit-project-access-revoked',revoke);return()=>window.removeEventListener('orbit-project-access-revoked',revoke);},[]);
  const can=(permission:string)=>user?.roleCode==='super_admin'||permissionGranted(user?.permissions??[],permission);
  const project=projects.find(project=>project.id===context?.accountId);
  function enter(id:number){const next=projects.find(project=>project.id===id);if(!next)return;if(!window.confirm(`确定${context?'切换到':'进入'}“${next.name}”项目吗？未保存的内容将自动清除，随后进入项目工作台。`))return;setNoticeTarget(null);sessionStorage.removeItem('orbit:content-pool-state');setContext({accountId:next.id,accountCode:next.code,accountName:next.name,platformCode:'',platformName:'',groupId:null,groupName:null});setTargetCode('');setNav('项目工作台');setEpoch(value=>value+1);setMessage('');}
@@ -33,7 +34,7 @@ export function ProjectShell(){
  const loadNotices=useCallback(async()=>{if(!canNotice)return;const rules=encodeURIComponent(JSON.stringify([{field:'readState',operator:'eq',value:'待处理',join:'and'}]));const data=await projectApi('/api/notices?rules='+rules);setNoticeTasks(data.items.filter((row:NoticeTask)=>row.actionRequired).slice(0,5));},[canNotice]);
  useEffect(()=>{const first=setTimeout(()=>void loadNotices().catch(()=>{}),0);const timer=setInterval(()=>void loadNotices().catch(()=>{}),30000);return()=>{clearTimeout(first);clearInterval(timer);};},[loadNotices]);
  const globalNav=[['系统首页',''],['通知公告','notice.view'],['工作报备','report.create'],['项目管理','business.accounts'],['组织与权限','admin.view'],['报备模板','report.template_manage'],['配置中心','admin.settings'],['操作日志','audit.view']];
- const projectNav=project?.projectType==='cross_border'?[['项目工作台',''],['线索库','cross'],['母版库','cross'],['产品包管理','cross'],['审核中心','review']]:[['项目工作台',''],['素材中心','assets'],['产品库','products'],['内容池','content'],['审核中心','review'],['发布管理','publishing'],['版本管理','versions'],['数据统计','analytics']];
+ const projectNav=project?.projectType==='cross_border'?[['项目工作台',''],['线索库','cross'],['母版库','cross'],['产品包管理','cross'],['母版审核','review'],['产品包审核','review']]:[['项目工作台',''],['素材中心','assets'],['产品库','products'],['内容池','content'],['审核中心','review'],['发布管理','publishing'],['版本管理','versions'],['数据统计','analytics']];
 
  const globalPage=globalNav.some(([name])=>name===nav);
  const visibleGlobal=globalNav.filter(([name,key])=>!key||can(key)||(name==='工作报备'&&(can('report.receive')||can('report.cc'))));

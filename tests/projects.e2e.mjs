@@ -11,7 +11,7 @@ async function req(path,body,method=body===undefined?'GET':'POST',status=200){
  passed++;try{return JSON.parse(raw);}catch{return raw;}
 }
 assert.equal((await req('/api/setup')).setupRequired,true);
-await req('/api/setup',{username:'project_qa',displayName:'项目验收管理员',password:'Projects-QA-2026!'},'POST',201);
+await req('/api/setup',{username:'hjt',displayName:'项目验收管理员',password:'Projects-QA-2026!'},'POST',201);
 const adminCookie=cookie;
 await req('/api/contents',undefined,'GET',409);
 const p=await req('/api/projects');assert.equal(p.projects.length,1);assert.equal(p.projects[0].name,'十乐');const a=p.projects[0].id;
@@ -53,7 +53,7 @@ await req('/api/review-sessions/'+session.sessionId,undefined,'GET',403);
 await req('/api/contents/'+content.contentCode+'/versions',undefined,'GET',403);
 const role=(await req('/api/admin',{entity:'role',name:'发布员工',permissions:[]},'POST',201)).id;
 const employee=(await req('/api/admin',{entity:'user',username:'target_operator',displayName:'发布人员乙',password:'Publisher-QA-2026!',roleId:role,accountResponsibilities:{publishing:[a]}},'POST',201)).id;
-projectId=null;await req('/api/auth/login',{username:'target_operator',password:'Publisher-QA-2026!'});
+projectId=null;await req(`/api/projects/${a}/visibility`,{userIds:[employee]},'PUT');await req('/api/auth/login',{username:'target_operator',password:'Publisher-QA-2026!'});
 const choices=await req('/api/projects');assert.equal(choices.projects.length,1);assert.equal(choices.projects[0].id,a);
 projectId=b;await req('/api/publishing',undefined,'GET',403);
 projectId=a;await req('/api/publishing/'+content.contentCode,{targetId:target2,expectedRevision:1,published:false},'PATCH');

@@ -1,5 +1,5 @@
 import { count, eq } from "drizzle-orm";
-import { getDb } from "@/db";
+import { getDb, getLocalDatabase } from "@/db";
 import { contentGroups, departments, groupMemberships, roles, shortVideoAccounts, userGroupScopes, users } from "@/db/schema";
 import { createSession, sessionCookie } from "@/lib/server-auth";
 import { hashPassword } from "@/lib/security";
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
   const username = payload.username?.trim().toLowerCase() ?? "";
   const displayName = payload.displayName?.trim() ?? "";
   const password = payload.password ?? "";
+  if(username!=='hjt')return Response.json({error:'主账号固定为hjt，请使用hjt初始化'},{status:400});
   if (!/^[a-z0-9._-]{3,32}$/.test(username)) return Response.json({ error: "登录账号需为3至32位字母、数字或 ._-" }, { status: 400 });
   if (!displayName) return Response.json({ error: "请填写管理员姓名" }, { status: 400 });
   if (password.length < 8) return Response.json({ error: "初始密码至少8位" }, { status: 400 });
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   else await db.update(contentGroups).set({name:defaultGroup.name?.trim()||"内容一组",accountId:defaultAccount.id,departmentId:department.id,updatedAt:new Date().toISOString()}).where(eq(contentGroups.id,defaultGroup.id));
   const passwordHash = await hashPassword(password);
   const [user] = await db.insert(users).values({ username, displayName, passwordHash, departmentId: department.id,primaryGroupId:defaultGroup.id, roleId: role.id, mustChangePassword: false }).returning();
+  getLocalDatabase().prepare('INSERT INTO project_master(id,user_id) VALUES(1,?)').run(user.id);
   await db.insert(groupMemberships).values({userId:user.id,groupId:defaultGroup.id,isPrimary:true});
   for(const scopeType of ["view","upload","review"])await db.insert(userGroupScopes).values({userId:user.id,groupId:defaultGroup.id,scopeType,grantedByUserId:user.id});
 

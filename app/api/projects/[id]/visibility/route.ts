@@ -1,0 +1,10 @@
+import {getLocalDatabase} from '@/db';
+import {requireUser} from '@/lib/server-auth';
+import {isProjectMaster} from '@/lib/project-visibility';
+import {atomicWrite} from '@/lib/publishing-write';
+type Context={params:Promise<{id:string}>};
+async function handle(request:Request,context:Context){const auth=await requireUser(request);if(!auth.user)return auth.response;const db=getLocalDatabase();if(!isProjectMaster(db,auth.user))return Response.json({error:'只有hjt可以配置项目可见人员'},{status:403});const id=Number((await context.params).id);if(!db.prepare('SELECT id FROM short_video_accounts WHERE id=?').get(id))return Response.json({error:'项目不存在'},{status:404});
+ if(request.method==='GET')return Response.json({users:db.prepare("SELECT id,username,display_name AS name FROM users WHERE status='active' ORDER BY display_name").all(),selected:db.prepare('SELECT user_id FROM project_visibility WHERE project_id=?').all(id).map(row=>Number(row.user_id)),masterId:auth.user.id});
+ const body=await request.json().catch(()=>null);if(!Array.isArray(body?.userIds)||body.userIds.some((n:unknown)=>!Number.isSafeInteger(n)))return Response.json({error:'请选择有效人员'},{status:400});
+ try{atomicWrite(db,()=>{const ids=[...new Set<number>(body.userIds)];for(const user of ids)if(!db.prepare("SELECT id FROM users WHERE id=? AND status='active'").get(user))throw Error('人员已停用或不存在');const before=db.prepare('SELECT user_id FROM project_visibility WHERE project_id=?').all(id);db.prepare('DELETE FROM project_visibility WHERE project_id=?').run(id);for(const user of ids)db.prepare('INSERT INTO project_visibility(project_id,user_id,granted_by) VALUES(?,?,?)').run(id,user,auth.user!.id);db.prepare('INSERT INTO audit_logs(user_id,action,object_type,object_id,details_json) VALUES(?,?,?,?,?)').run(auth.user!.id,'project.visibility','project',String(id),JSON.stringify({before,after:ids}));});return Response.json({ok:true});}catch(error){return Response.json({error:(error as Error).message},{status:409});}}
+export const GET=handle;export const PUT=handle;

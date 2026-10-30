@@ -1,3 +1,5 @@
+import {getLocalDatabase} from '@/db';
+import {allowedProjectIds} from '@/lib/project-visibility';
 import {asc,eq} from "drizzle-orm";
 import {getDb} from "@/db";
 import {contentGroups,departments,groupMemberships,roles,users} from "@/db/schema";
@@ -11,9 +13,9 @@ export async function GET(request:Request){
   db.select({id:users.id,name:users.displayName,color:users.contentColor,departmentId:users.departmentId,roleId:users.roleId}).from(users).where(eq(users.status,"active")).orderBy(asc(users.displayName)),
   db.select({id:roles.id,name:roles.name}).from(roles).orderBy(asc(roles.name)),
   db.select({id:departments.id,name:departments.name,parentId:departments.parentId}).from(departments).orderBy(asc(departments.name)),
-  db.select({id:contentGroups.id,name:contentGroups.name}).from(contentGroups).where(eq(contentGroups.status,"active")).orderBy(asc(contentGroups.name)),
+  db.select({id:contentGroups.id,name:contentGroups.name,projectId:contentGroups.accountId}).from(contentGroups).where(eq(contentGroups.status,"active")).orderBy(asc(contentGroups.name)),
   db.select({userId:groupMemberships.userId,groupId:groupMemberships.groupId}).from(groupMemberships),
  ]);
  const groupsByUser=new Map<number,number[]>();for(const row of memberships)(groupsByUser.get(row.userId)??(groupsByUser.set(row.userId,[]),groupsByUser.get(row.userId)!)).push(row.groupId);
- return Response.json({canUpload,canPublish,canBrowseMaterials,users:people.map(person=>({...person,groupIds:groupsByUser.get(person.id)??[]})),roles:roleRows,departments:departmentRows,groups:groupRows});
+ return Response.json({canUpload,canPublish,canBrowseMaterials,users:people.map(person=>({...person,groupIds:groupsByUser.get(person.id)??[]})),roles:roleRows,departments:departmentRows,groups:groupRows.filter(g=>g.projectId!==null&&allowedProjectIds(getLocalDatabase(),auth.user!).includes(g.projectId))});
 }

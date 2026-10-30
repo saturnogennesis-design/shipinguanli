@@ -19,6 +19,7 @@ function fixture(t){
  INSERT INTO contents(id,code,title,content_type,account_id,group_id,uploader_user_id,review_status,product_master_id) VALUES(100,'A','内容A','video',${project},100,100,'approved',100);
  INSERT INTO content_versions(id,content_id,version_number,file_name,storage_path,mime_type,file_size,uploaded_by_user_id,upload_status) VALUES(100,100,1,'a.mp4','a.mp4','video/mp4',4,100,'complete');
  INSERT INTO publishing_targets(id,project_id,name) VALUES(100,${project},'主号'),(101,${project},'副号'),(200,200,'B账号');`);
+ db.prepare('INSERT INTO project_visibility(project_id,user_id,granted_by) VALUES(?,?,?)').run(project,100,100);db.prepare('INSERT INTO project_visibility(project_id,user_id,granted_by) VALUES(?,?,?)').run(200,100,100);
  return {db,project};
 }
 function write(db,project,overrides={}){return writeTargetPublishing(db,{projectId:project,contentCode:'A',targetId:100,userId:100,expectedRevision:0,published:true,...overrides});}

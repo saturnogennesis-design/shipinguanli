@@ -1,8 +1,9 @@
+import {isProjectMaster} from './project-visibility';
 import {getLocalDatabase} from '@/db';
 import {requireUser,hasPermission,type AuthUser} from './server-auth';
 import {visibleProjectIds} from './project-access';
 export function crossAccess(user:AuthUser){
- const admin=user.roleCode==='super_admin'||hasPermission(user,'business.accounts');
+ const admin=isProjectMaster(getLocalDatabase(),user)||user.roleCode==='super_admin'||hasPermission(user,'business.accounts');
  const canAssign=admin||hasPermission(user,'cross.assign');
  return {admin,canAssign,canReview:admin||hasPermission(user,'cross.review'),canCreate:canAssign||hasPermission(user,'cross.create'),canView:admin||hasPermission(user,'cross.view')||hasPermission(user,'cross.create')||hasPermission(user,'cross.review')||hasPermission(user,'cross.assign')||hasPermission(user,'cross.download'),canDownload:admin||hasPermission(user,'cross.download')};
 }

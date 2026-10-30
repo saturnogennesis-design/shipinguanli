@@ -1,3 +1,4 @@
+import {isProjectMaster} from './project-visibility';
 import { and, eq, gt } from "drizzle-orm";
 import { getDb, getLocalDatabase } from "@/db";
 import { roles, userAccountResponsibilities, userGroupScopes, userPermissionOverrides, userSessions, users } from "@/db/schema";
@@ -103,8 +104,8 @@ export async function getCurrentUser(request: Request): Promise<AuthUser | null>
     roleCode: row.roleCode,
     roleName: row.roleName,
     dataScope: row.dataScope,
-    permissions,
-    deniedPermissions,
+    permissions:isProjectMaster(getLocalDatabase(),row)?['*']:permissions,
+    deniedPermissions:isProjectMaster(getLocalDatabase(),row)?[]:deniedPermissions,
     primaryGroupId: row.primaryGroupId,
     groupScopes,
   };
@@ -119,7 +120,7 @@ export async function requireUser(request: Request) {
 }
 
 export function hasPermission(user: AuthUser, permission: string) {
-  return user.roleCode === "super_admin" || (!user.deniedPermissions.includes(permission)&&permissionGranted(user.permissions, permission));
+  return isProjectMaster(getLocalDatabase(),user) || user.roleCode === "super_admin" || (!user.deniedPermissions.includes(permission)&&permissionGranted(user.permissions, permission));
 }
 
 export function groupScopeIds(user:AuthUser,scopeType:string){

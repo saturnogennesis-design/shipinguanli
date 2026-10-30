@@ -1,6 +1,6 @@
 {
   "name": "orbit-video-ops",
-  "version": "3.20.0",
+  "version": "3.21.0",
   "private": true,
   "packageManager": "pnpm@11.19.0",
   "engines": {
@@ -11,6 +11,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "test": "pnpm run build && node --test tests/rendered-html.test.mjs",
+    "test:production": "node --test --test-isolation=none tests/production-workflow.test.mjs tests/target-publishing.test.mjs tests/projects-migration.test.mjs",
     "test:projects": "node --test tests/projects-migration.test.mjs tests/target-publishing.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

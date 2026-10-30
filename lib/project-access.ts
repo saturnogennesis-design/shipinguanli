@@ -1,15 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { AuthUser } from "./server-auth";
-export function visibleProjectIds(db:DatabaseSync,user:AuthUser):number[]{
- if(user.roleCode==='super_admin')return db.prepare("SELECT id FROM short_video_accounts WHERE status='active'").all().map(row=>Number(row.id));
- return db.prepare(`SELECT DISTINCT p.id FROM short_video_accounts p WHERE p.status='active' AND (
- EXISTS(SELECT 1 FROM user_account_responsibilities r WHERE r.account_id=p.id AND r.user_id=?) OR
- EXISTS(SELECT 1 FROM content_groups g WHERE g.account_id=p.id AND g.status='active' AND (
- g.id=? OR EXISTS(SELECT 1 FROM group_memberships m WHERE m.group_id=g.id AND m.user_id=?) OR
- EXISTS(SELECT 1 FROM user_group_scopes s WHERE s.group_id=g.id AND s.user_id=?) OR
- EXISTS(SELECT 1 FROM user_group_responsibilities r WHERE r.group_id=g.id AND r.user_id=?))))`)
- .all(user.id,user.primaryGroupId,user.id,user.id,user.id).map(row=>Number(row.id));
-}
+import {allowedProjectIds} from './project-visibility';
+export function visibleProjectIds(db:DatabaseSync,user:AuthUser):number[]{return allowedProjectIds(db,user);}
 const roots=new Set(['cross-records','contents','content-versions','content-version-files','material-sets','material-files','materials','product-masters','reviews','review-sessions','versions','publishing','analytics','dashboard','groups','business-data','content-categories','filters']);
 export function isProjectPath(path:string){return roots.has(path.split('/')[2]??'');}
 export async function bindProjectRequest(db:DatabaseSync,request:Request,user:AuthUser):Promise<Response|null>{

@@ -1,0 +1,4 @@
+import type {DatabaseSync} from 'node:sqlite';
+export function isProjectMaster(db:DatabaseSync,user:{id:number}){return Boolean(db.prepare("SELECT 1 FROM project_master m JOIN users u ON u.id=m.user_id WHERE m.id=1 AND m.user_id=? AND u.username='hjt' AND u.status='active'").get(user.id));}
+export function maySeeProject(db:DatabaseSync,user:{id:number},project:number){return isProjectMaster(db,user)||Boolean(db.prepare('SELECT 1 FROM project_visibility WHERE project_id=? AND user_id=?').get(project,user.id));}
+export function allowedProjectIds(db:DatabaseSync,user:{id:number},activeOnly=true){return db.prepare(`SELECT id FROM short_video_accounts p WHERE (?=0 OR p.status='active') AND (?=1 OR EXISTS(SELECT 1 FROM project_visibility v WHERE v.project_id=p.id AND v.user_id=?))`).all(activeOnly?1:0,isProjectMaster(db,user)?1:0,user.id).map(row=>Number(row.id));}

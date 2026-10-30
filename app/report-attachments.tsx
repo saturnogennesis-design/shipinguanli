@@ -11,7 +11,7 @@ function OfficeContent({content}:{content:OfficePreview}) {
   const table=(rows:string[][])=><div className="report-document-table"><table><tbody>{rows.map((row,index)=><tr key={index}>{row.map((cell,column)=><td key={column}>{cell}</td>)}</tr>)}</tbody></table></div>;
   return <>{content.kind==="word"?<article className="report-word-preview">{content.blocks.length?content.blocks.map((block,index)=>block.type==="paragraph"?<p key={index}>{block.text||"\u00a0"}</p>:<div key={index}>{table(block.rows)}</div>):<p>正文为空或仅包含图片，请下载原件查看。</p>}</article>:<><nav className="report-sheet-tabs" aria-label="选择工作表">{content.sheets.map((item,index)=><button key={index} aria-pressed={sheet===index} onClick={()=>setSheet(index)}>{item.name}</button>)}</nav>{table(content.sheets[sheet]?.rows??[])}</>}{content.truncated?<p role="status">仅展示部分内容，请下载原件查看完整文档。</p>:null}<p className="report-document-hint">此处为正文／表格内容预览，不执行宏或公式；复杂排版、图片、图表及数字格式请下载原件查看。</p></>;
 }
-function DocumentPreview({file,onClose}:{file:ReportAttachment|File;onClose:()=>void}) {
+export function DocumentPreview({file,onClose}:{file:ReportAttachment|File;onClose:()=>void}) {
   const [state,setState]=useState<{loading:boolean;error?:string;url?:string;office?:OfficePreview}>({loading:true});
   const name=file instanceof File?file.name:file.fileName,kind=extension(name),local=file instanceof File;
   useEffect(()=>{
@@ -20,7 +20,7 @@ function DocumentPreview({file,onClose}:{file:ReportAttachment|File;onClose:()=>
       let blob:Blob;
       if(file instanceof File)blob=file;
       else {
-        const response=await fetch(file.url+((kind==="doc"||kind==="xls")?"?preview=1":""),{cache:"no-store",signal:controller.signal});
+        const response=await fetch(file.url+((kind==="doc"||kind==="xls")?(file.url.includes("?")?"&preview=1":"?preview=1"):""),{cache:"no-store",signal:controller.signal});
         if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error??"附件读取失败");}
         blob=await response.blob();
       }
@@ -34,7 +34,7 @@ function DocumentPreview({file,onClose}:{file:ReportAttachment|File;onClose:()=>
     })().catch(error=>{if(active)setState({loading:false,error:error instanceof Error?error.message:"预览失败，请下载原件查看"});});
     return()=>{active=false;controller.abort();if(url)URL.revokeObjectURL(url);};
   },[file,kind]);
-  return <CenterDialog title={name} onClose={onClose}><div className="report-document-preview">{state.loading?<p role="status">正在准备文档预览…</p>:state.error?<p role="alert">{state.error}</p>:state.office?<OfficeContent content={state.office}/>:state.url?(file instanceof File&&/\.(jpe?g|png|webp|gif)$/i.test(file.name))||(!local&&(file as ReportAttachment).mimeType.startsWith("image/"))?<img src={state.url} alt={name}/>:<iframe title={name} src={state.url}/>:null}</div>{!local?<footer><a className="primary-button" href={(file as ReportAttachment).url+"?download=1"} download={name}>下载原件</a></footer>:null}</CenterDialog>;
+  return <CenterDialog title={name} onClose={onClose}><div className="report-document-preview">{state.loading?<p role="status">正在准备文档预览…</p>:state.error?<p role="alert">{state.error}</p>:state.office?<OfficeContent content={state.office}/>:state.url?(file instanceof File&&/\.(jpe?g|png|webp|gif)$/i.test(file.name))||(!local&&(file as ReportAttachment).mimeType.startsWith("image/"))?<img src={state.url} alt={name}/>:<iframe title={name} src={state.url}/>:null}</div>{!local?<footer><a className="primary-button" href={(file as ReportAttachment).url+((file as ReportAttachment).url.includes("?")?"&download=1":"?download=1")} download={name}>下载原件</a></footer>:null}</CenterDialog>;
 }
 export function ReportAttachments({reportId,files,pending=[],onPendingChange,onChanged,editable=false,spoken=false,refreshKey=0,notify,busy=false}:{
   reportId?:number;files?:ReportAttachment[];pending?:File[];onPendingChange?:(files:File[])=>void;onChanged?:()=>void;
