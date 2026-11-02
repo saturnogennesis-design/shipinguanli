@@ -1,6 +1,6 @@
-# V3.22.0 Windows安装／更新包
+# V3.22.1 Windows安装／更新包
 
-[下载安装包](OrbitVideoSetup-v3.22.0.zip?raw=1) · [SHA-256校验](OrbitVideoSetup-v3.22.0.zip.sha256)
+[下载安装包](OrbitVideoSetup-v3.22.1.zip?raw=1) · [SHA-256校验](OrbitVideoSetup-v3.22.1.zip.sha256)
 
 完整解压后，已有系统运行 **Update.cmd**，首次安装运行 **Install.cmd**。
 
@@ -8,6 +8,8 @@
 
 包内含安装说明、V3.22需求对账、完整源码、SQL升级文件及逐文件校验清单；不含测试数据库、媒体、登录会话、Linux依赖或构建产物。
 
-源码提交：`d14ceddce2edf203470b35ed029be2fd04872d7a`。
+源码提交：`66bcdd8c8b9b30219ab728af4b413a0471338e98`。
 
 本包由用户自行安装或更新，未由Codex部署正式服务器。
+
+V3.22.1包含关联卡片／折叠列表、多级返回、来源锁定、流转页签与归档恢复规则。本包SHA-256：`f577e1cb39f20083241d3014b2160ae849f8212dac8a66811a7778691cf09960`。
