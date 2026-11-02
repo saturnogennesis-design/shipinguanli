@@ -1,3 +1,4 @@
+import {imageThumbnail} from '@/lib/image-thumbnail';
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { contentVersionFiles, contentVersions, contents, reviews } from "@/db/schema";
@@ -43,7 +44,9 @@ export async function GET(request:Request,context:RouteContext) {
   if(record.draftEditToken&&record.uploaderUserId!==auth.user.id)return Response.json({error:"草稿编辑尚未保存"},{status:403});
   const canRead=await canReadContentVersion(auth.user,record.versionId);if(!canRead)return Response.json({error:"无权查看此文件"},{status:403});
   const canReadHistory=hasPermission(auth.user,"version.view")||hasPermission(auth.user,"review.view");if(record.versionNumber!==record.latestVersionNumber&&!canReadHistory){const [recommendation]=await getDb().select({id:reviews.id}).from(reviews).where(and(eq(reviews.versionId,record.versionId),eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).limit(1);if(!recommendation)return Response.json({error:"没有查看历史版本的权限"},{status:403});}
-  const object=await getMediaStore().get(record.storagePath,{range:request.headers});if(!object)return Response.json({error:"原文件不存在或媒体存储盘未连接"},{status:404});
+  const thumbnail=new URL(request.url).searchParams.get('thumb')==='1'&&record.mimeType.startsWith('image/');
+  const object=await getMediaStore().get(record.storagePath,thumbnail?undefined:{range:request.headers});if(!object)return Response.json({error:"原文件不存在或媒体存储盘未连接"},{status:404});
+  if(thumbnail)return imageThumbnail(request,record.storagePath,object);
   const headers=new Headers();object.writeHttpMetadata(headers);headers.set("etag",object.httpEtag);headers.set("accept-ranges","bytes");headers.set("content-disposition",`inline; filename*=UTF-8''${encodeURIComponent(record.fileName)}`);
   return new Response(object.body,{status:request.headers.has("range")?206:200,headers});
 }

@@ -820,3 +820,8 @@ button,input,select,textarea{font-size:14px!important}
 .cross-record-row:focus-visible{outline:2px solid #c5d3ed;outline-offset:-2px;background:#f7f9fd}
 .cross-child-row .cross-record-title{font-weight:400;color:#73849d}
 @media(max-width:600px){.cross-library-viewbar{padding:12px 10px;gap:8px}.cross-workspace .cross-library-viewbar .cross-library-tabs>button{padding:8px 9px;font-size:11px;gap:4px}.cross-library-viewbar>.cross-secondary-view{width:92px;font-size:10px;padding:6px}.cross-detail-page .cross-detail-tabs{margin:14px 14px 0;max-width:calc(100% - 28px)}.cross-detail-page .cross-detail-tabs>button{padding:9px 12px;font-size:11px}}
+
+.content-image-enlarge{display:block;width:100%;padding:0;border:0;background:transparent;cursor:zoom-in;overflow:hidden;border-radius:8px;}
+.content-image-lightbox{display:flex;flex-direction:column;gap:16px;align-items:center;}
+.content-image-lightbox>img{display:block;max-width:100%;height:auto;max-height:65vh;object-fit:contain;}
+.content-image-lightbox nav{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;}

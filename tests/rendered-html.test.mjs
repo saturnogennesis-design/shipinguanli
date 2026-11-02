@@ -183,7 +183,8 @@ test("persists administration, audit logs, retired platform responses, previews,
   assert.match(modules, /<AuditLogLive/);
   assert.match(modules, /<VersionCenterLive/);
   assert.match(modules, /real-video-preview/);
-  assert.match(modules, /real-image-preview/);
+  assert.match(modules, /ContentImageGallery/);
+  assert.match(await readFile(new URL("../app/content-image-gallery.tsx", import.meta.url), "utf8"), /real-image-preview/);
   assert.match(adminRoute, /hashPassword/);
   assert.match(adminRoute, /当前登录账号不能停用或修改自己的角色/);
   assert.match(auditRoute, /auditLogs/);

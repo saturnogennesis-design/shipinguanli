@@ -1,4 +1,5 @@
 "use client";
+import {ContentImageGallery} from "./content-image-gallery";
 import {ProjectPermissions} from "./project-permissions";
 
 import {ThumbnailImage} from "./thumbnail-image";
@@ -844,15 +845,7 @@ export function ContentDetailPanel({
                 src={previewUrls[0]}
               />
             ) : item.kind === "图文" && previewUrls.length ? (
-              <div className="real-image-preview">
-                {previewUrls.map((url, index) => (
-                  <img
-                    src={url}
-                    alt={`${item.title} 第${index + 1}张`}
-                    key={url}
-                  />
-                ))}
-              </div>
+              <ContentImageGallery key={`${item.id}-${item.version}`} urls={previewUrls} title={item.title}/>
             ) : (
               <div className="phone-preview">
                 <span>{item.kind === "视频" ? "▶" : "▤"}</span>
