@@ -8,6 +8,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
   exit
 }
 try {
+  & (Join-Path $PSScriptRoot "verify-package.ps1")
   & (Join-Path $PSScriptRoot "update.ps1") -InstallDir $InstallDir
   Write-Host "Update finished. Refresh the browser with Ctrl+F5." -ForegroundColor Green
 } catch {

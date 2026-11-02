@@ -10,9 +10,9 @@ with sync_playwright() as p:
  page.on('pageerror',lambda e:errors.append(str(e)));accept_dialog=lambda d:d.accept();page.on('dialog',accept_dialog)
  page.goto(base);page.locator(f"#project-tab-{state['a']}").click();nav=page.get_by_role('navigation',name='项目二级导航')
  nav.get_by_role('button',name='线索库',exact=True).click();q=page.get_by_role('textbox',name='搜索名称或编号')
- scopes=page.get_by_role('tablist',name='资料范围');expect(scopes.get_by_role('tab')).to_have_count(3);expect(scopes.get_by_role('tab').first).to_have_attribute('aria-selected','true');checks+=2
+ scopes=page.get_by_role('tablist',name='资料范围');expect(scopes.get_by_role('tab')).to_have_count(4);expect(scopes.get_by_role('tab').first).to_have_attribute('aria-selected','true');checks+=2
  q.fill('关联线索A');page.get_by_role('button',name='列表',exact=True).click();page.get_by_role('button',name='关联线索A',exact=True).click()
- detail=page.locator('.cross-detail-page');expect(detail.get_by_role('tab',name='资料详情',exact=True)).to_be_visible();assert detail.get_by_role('textbox',name='名称',exact=True).count()==0
+ detail=page.locator('.cross-detail-page');expect(detail.get_by_role('tab',name='资料与备注',exact=True)).to_be_visible();assert detail.get_by_role('textbox',name='名称',exact=True).count()==0
  assert detail.get_by_role('button',name='编辑线索',exact=True).count()==0;assert detail.get_by_role('button',name='复制新建',exact=True).count()==0;checks+=3
  detail.get_by_role('tab',name='关联母版').click();expect(detail.get_by_role('button',name='新增母版',exact=True)).to_be_visible();expect(detail.locator('.cross-related-card')).to_have_count(1)
  page.screenshot(path=str(out/'关联母版-桌面.png'));detail.locator('.cross-related-card').first.click();expect(page.locator('.cross-detail-page h2')).to_have_text('关联母版A');checks+=2
@@ -30,14 +30,15 @@ with sync_playwright() as p:
  later=page.request.get(base+'/api/cross-records',headers={'x-orbit-project-id':str(state['a'])}).json()['items'];assert len(later)==len(count);checks+=2
  page.on('dialog',accept_dialog);page.get_by_role('button',name='清空条件',exact=True).click();current=page.request.get(base+'/api/cross-records?id='+str(state['free']),headers={'x-orbit-project-id':str(state['a'])}).json()['row'];next_version=current['version_number']+1;next_title='浏览器提交第'+str(next_version)+'版';q.fill(current['title']);page.get_by_role('button',name=current['title'],exact=True).click()
  detail.get_by_role('button',name='编辑线索',exact=True).click();editor=page.locator('.cross-edit-page');editor.get_by_role('textbox',name='名称',exact=True).fill(next_title);editor.get_by_role('button',name='提交新版本',exact=True).click()
- expect(detail.locator('h2')).to_have_text(next_title);detail.get_by_role('tab',name='版本与日志',exact=True).click()
+ expect(detail.locator('h2')).to_have_text(next_title);detail.get_by_role('tab',name='操作记录',exact=True).click()
  expect(detail.locator('.cross-version-event').filter(has_text='V'+str(next_version))).to_be_visible();detail.get_by_role('button',name='只看版本',exact=True).click();expect(detail.locator('.cross-version-list>button')).to_have_count(next_version)
  detail.locator('.cross-version-list>button').last.click();modal=page.get_by_role('dialog').last;expect(modal).to_contain_text('可编辑线索');modal.get_by_role('button',name='关闭弹窗',exact=True).click();checks+=3
  page.screenshot(path=str(out/'版本与日志-桌面.png'));detail.get_by_role('button',name='时间线',exact=True).click();checks+=1
- # Notes stay in one collapsible section, separate from the review reason and formal versions.
+ # Notes are present only in the first functional detail tab.
+ detail.get_by_role('tab',name='资料与备注',exact=True).click()
  detail.get_by_role('textbox',name='备注',exact=True).fill('本轮简洁备注');detail.get_by_role('button',name='保存备注',exact=True).click();expect(detail.locator('.cross-remark-list')).to_contain_text('本轮简洁备注')
  remarks=detail.locator('.cross-remarks');remarks.locator(':scope>summary').click();assert not remarks.evaluate('(e)=>e.open');remarks.locator(':scope>summary').click();checks+=2
- detail.get_by_role('tab',name='资料详情',exact=True).click();page.screenshot(path=str(out/'资料详情-桌面.png'))
+ detail.get_by_role('tab',name='资料与备注',exact=True).click();page.screenshot(path=str(out/'资料详情-桌面.png'))
  for width in [1440,1024,540]:
   page.set_viewport_size({'width':width,'height':960});page.wait_for_timeout(150)
   if width<=760 and page.get_by_role('button',name='收起导航',exact=True).count():page.get_by_role('button',name='收起导航',exact=True).click()

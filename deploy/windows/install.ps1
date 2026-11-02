@@ -65,8 +65,8 @@ if (-not $nodeCommand) {
   throw "Node.js 22 or newer is required. Install the Node.js 22 LTS Windows x64 version, then rerun this script."
 }
 $nodeVersion = & $nodeCommand.Source -p "process.versions.node"
-$nodeMajor = [int]($nodeVersion.Split('.')[0])
-if ($nodeMajor -lt 22) { throw "Node.js 22 or newer is required. Current version: $nodeVersion" }
+$nodeRelease = [version](($nodeVersion -split '-')[0])
+if ($nodeRelease -lt [version]"22.13.0") { throw "Node.js 22.13.0 or newer is required. Current version: $nodeVersion" }
 
 $pnpmCommand = Get-Command pnpm.cmd -ErrorAction SilentlyContinue
 if (-not $pnpmCommand) {
@@ -98,7 +98,7 @@ $nodePath = $nodeCommand.Source
 
 Push-Location $InstallDir
 try {
-  & $pnpmCommand.Source install --frozen-lockfile
+  & $pnpmCommand.Source install --frozen-lockfile --prod=false
   if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed." }
   & $pnpmCommand.Source run build
   if ($LASTEXITCODE -ne 0) { throw "Production build failed." }

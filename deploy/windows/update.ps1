@@ -39,7 +39,7 @@ try {
 
   Push-Location $InstallDir
   try {
-    & $pnpmCommand.Source install --frozen-lockfile
+    & $pnpmCommand.Source install --frozen-lockfile --prod=false
     if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed." }
     & $pnpmCommand.Source run build
     if ($LASTEXITCODE -ne 0) { throw "Production build failed." }
