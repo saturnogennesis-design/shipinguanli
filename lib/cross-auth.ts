@@ -3,9 +3,9 @@ import {getLocalDatabase} from '@/db';
 import {requireUser,hasPermission,type AuthUser} from './server-auth';
 import {visibleProjectIds} from './project-access';
 export function crossAccess(user:AuthUser){
- const admin=isProjectMaster(getLocalDatabase(),user)||user.roleCode==='super_admin'||hasPermission(user,'business.accounts');
+ const admin=isProjectMaster(getLocalDatabase(),user);
  const canAssign=admin||hasPermission(user,'cross.assign');
- return {admin,canAssign,canReview:admin||hasPermission(user,'cross.review'),canCreate:canAssign||hasPermission(user,'cross.create'),canView:admin||hasPermission(user,'cross.view')||hasPermission(user,'cross.create')||hasPermission(user,'cross.review')||hasPermission(user,'cross.assign')||hasPermission(user,'cross.download'),canDownload:admin||hasPermission(user,'cross.download')};
+ return {admin,canAssign,canEdit:admin||hasPermission(user,'cross.edit'),canArchive:admin||hasPermission(user,'cross.archive'),canDelete:admin||hasPermission(user,'cross.delete'),canReview:admin||hasPermission(user,'cross.review'),canCreate:admin||hasPermission(user,'cross.create'),canView:admin||hasPermission(user,'cross.view'),canDownload:admin||hasPermission(user,'cross.download')};
 }
 export async function requireCross(request:Request){
  const auth=await requireUser(request);if(!auth.user)return {response:auth.response};

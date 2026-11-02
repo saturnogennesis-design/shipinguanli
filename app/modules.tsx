@@ -1,4 +1,5 @@
 "use client";
+import {ProjectPermissions} from "./project-permissions";
 
 import {ThumbnailImage} from "./thumbnail-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9400,7 +9401,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
     users: [],
   };
   const [data, setData] = useState<AdminData>(empty);
-  const [tab, setTab] = useState<"organization"|"roles" | "employees">(
+  const [tab, setTab] = useState<"organization"|"roles" | "employees" | "projects">(
     "organization",
   );
   const [drawer, setDrawer] = useState<"role" | "user" | "department" | "group" | null>(
@@ -9609,7 +9610,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
     setToggleUser(null);
   };
   const action =
-    tab === "roles"
+    tab === "projects" ? "" : tab === "roles"
       ? data.canManageRoles ? "新建角色" : ""
       : tab === "employees"
         ? data.canManageUsers ? "创建员工账号" : ""
@@ -9630,7 +9631,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
         }
       />
       <section className="panel module-panel">
-        <div className="org-tabs">
+        <div className="org-tabs"><button className={tab === "projects" ? "selected" : ""} onClick={() => setTab("projects")}>项目权限</button>
           <button className={tab === "organization" ? "selected" : ""} onClick={() => setTab("organization")}>组织架构与小组</button>
           <button
             className={tab === "roles" ? "selected" : ""}
@@ -9645,6 +9646,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
             员工账号
           </button>
         </div>
+        {tab === "projects" && <ProjectPermissions projects={data.accounts} notify={notify}/>}
         {tab === "roles" && (
           <>
             <RuleFilterBar moduleKey="roles" fields={roleFields} rules={roleRules} onChange={setRoleRules} />

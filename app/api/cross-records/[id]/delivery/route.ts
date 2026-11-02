@@ -7,10 +7,10 @@ type Context={params:Promise<{id:string}>};
 export async function GET(request:Request,context:Context){
  const auth=await requireCross(request);if(!auth.user)return auth.response;const {db,user,access}=auth;
  if(!access.canDownload)return Response.json({error:'没有下载权限'},{status:403});
- const row=crossRow(db,Number((await context.params).id),user.projectId!);if(!row||row.kind!=='package'||!recordVisible(db,row,user))return Response.json({error:'产品包不存在或无权访问'},{status:404});if(row.status!=='approved')return Response.json({error:'仅审核通过资料可下载'},{status:409});
+ const row=crossRow(db,Number((await context.params).id),user.projectId!);if(!row||row.kind!=='package'||!recordVisible(db,row,user))return Response.json({error:'产品包不存在或无权访问'},{status:404});if(row.lifecycle==='deleted'||row.status!=='approved')return Response.json({error:'仅审核通过资料可下载'},{status:409});
  const group=new URL(request.url).searchParams.get('group')==='1';if(group&&row.package_type!=='main')return Response.json({error:'请从主图产品整组下载'},{status:400});
  const candidates=group?[row,...db.prepare('SELECT * FROM cross_records WHERE main_id=? AND project_id=? ORDER BY id').all(row.id,row.project_id) as CrossRecord[]]:[row];
- const visible=candidates.filter(item=>recordVisible(db,item,user)),selected=visible.filter(item=>item.status==='approved');
+ const visible=candidates.filter(item=>item.lifecycle!=='deleted'&&recordVisible(db,item,user)),selected=visible.filter(item=>item.status==='approved');
  const store=getMediaStore(),entries:Array<{name:string;open:()=>Promise<ReadableStream|null>}>=[];let skipped=false;
  for(const item of selected){const v=db.prepare('SELECT snapshot_json FROM cross_versions WHERE record_id=? AND version_number=?').get(item.id,item.version_number);if(!v)return Response.json({error:'审核版本缺失'},{status:409});const snapshot=JSON.parse(String(v.snapshot_json)),prefix=`${item.id}-V${item.version_number}/`;
  const files=(snapshot.files as {id:number}[]).map(f=>db.prepare('SELECT * FROM cross_files WHERE id=? AND record_id=?').get(f.id,item.id) as CrossFile|undefined);if(files.some(f=>!f))return Response.json({error:'历史文件引用缺失'},{status:409});

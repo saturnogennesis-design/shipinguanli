@@ -119,7 +119,17 @@ export async function requireUser(request: Request) {
   return { user, response: null } as const;
 }
 
+export function projectPermission(user:AuthUser,permission:string,projectId:number){
+ const db=getLocalDatabase();
+ if(isProjectMaster(db,user))return true;
+ const profile=db.prepare('SELECT permissions_json FROM project_user_permissions WHERE project_id=? AND user_id=?').get(projectId,user.id);
+ if(profile)return permissionGranted(JSON.parse(String(profile.permissions_json)),permission);
+ // Existing projects retain their role baseline until an explicit project profile is saved.
+ const legacy=permission==='cross.edit'?'cross.create':permission;
+ return user.roleCode==='super_admin'||(!user.deniedPermissions.includes(permission)&&(permissionGranted(user.permissions,permission)||!user.deniedPermissions.includes(legacy)&&permissionGranted(user.permissions,legacy)));
+}
 export function hasPermission(user: AuthUser, permission: string) {
+ if(user.projectId&&/^(cross|asset|content|review|publishing|version|analytics|business)\./.test(permission))return projectPermission(user,permission,user.projectId);
   return isProjectMaster(getLocalDatabase(),user) || user.roleCode === "super_admin" || (!user.deniedPermissions.includes(permission)&&permissionGranted(user.permissions, permission));
 }
 
