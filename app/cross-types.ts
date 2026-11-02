@@ -1,5 +1,5 @@
 export type Kind='clue'|'mother'|'package';
-export type Row={isSampled?:boolean;canSetSample?:boolean;lifecycle?:string;hasMothers?:boolean;id:number;project_id:number;kind:Kind;parent_id:number|null;parentTitle:string|null;main_id:number|null;package_type:string;product_category_id:number|null;copied_from_id:number|null;cover_file_id:number|null;title:string;creator_id:number;maker_id:number;creatorName:string;makerName:string;status:string;revision:number;version_number:number;body_json:string;coverId:number|null;coverMime:string;fileCount:number;created_at:string;updated_at:string;reviewerName?:string;reviewedAt?:string;submittedAt?:string};
+export type Row={source_locked?:number;isSampled?:boolean;canSetSample?:boolean;lifecycle?:string;hasMothers?:boolean;id:number;project_id:number;kind:Kind;parent_id:number|null;parentTitle:string|null;main_id:number|null;package_type:string;product_category_id:number|null;copied_from_id:number|null;cover_file_id:number|null;title:string;creator_id:number;maker_id:number;creatorName:string;makerName:string;status:string;revision:number;version_number:number;body_json:string;coverId:number|null;coverMime:string;fileCount:number;created_at:string;updated_at:string;reviewerName?:string;reviewedAt?:string;submittedAt?:string};
 export type Person={id:number;username:string;name:string};
 export type Category={id:number;name:string;status:string};
 export type BusinessType={id:number;code:string;name:string;media_type:'image'|'video'|'document';status:string};
@@ -7,7 +7,7 @@ export type Access={canEdit:boolean;canArchive:boolean;canDelete:boolean;admin:b
 export type StoredFile={id:number;record_id:number;file_name:string;mime_type:string;file_size:number;uploader_id:number;uploaderName:string;shared_json:string;canShare:boolean;created_at:string};
 export type Note={legacy_source?:string;id:number;body:string;authorName:string;created_at:string};
 export type Version={id:number;version_number:number;snapshot_json:string;submitterName:string;created_at:string};
-export type Timeline={id:number;recordId:number;recordTitle:string;kind:Kind;actorName:string;created_at:string;action:string;version_number:number|null;eventType:string;legacy_source?:string;fileName?:string;body?:string;details_json?:string};
+export type Timeline={sequence?:number;id:number;recordId:number;recordTitle:string;kind:Kind;actorName:string;created_at:string;action:string;version_number:number|null;eventType:string;legacy_source?:string;fileName?:string;body?:string;details_json?:string};
 export type Detail={related:Row[];row:Row;files:StoredFile[];notes:Note[];copiedNotes:Note[];versions:Version[];timeline:Timeline[];reference:{title:string;data:Record<string,string>;files:StoredFile[]}|null;referenceVersion:number|null;parent:Row|null;clue:Row|null;access:Access;currentUserId:number};
 export type Notify=(s:string,t?:'success'|'error')=>void;
 export const names={clue:'线索',mother:'母版',package:'产品包'};

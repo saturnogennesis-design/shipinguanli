@@ -28,13 +28,13 @@ export function ProjectShell(){
  const can=(permission:string)=>user?.roleCode==='super_admin'||permissionGranted(user?.permissions??[],permission);
  const project=projects.find(project=>project.id===context?.accountId);
  function enter(id:number){const next=projects.find(project=>project.id===id);if(!next)return;if(!window.confirm(`确定${context?'切换到':'进入'}“${next.name}”项目吗？未保存的内容将自动清除，随后进入项目工作台。`))return;setNoticeTarget(null);sessionStorage.removeItem('orbit:content-pool-state');setContext({accountId:next.id,accountCode:next.code,accountName:next.name,platformCode:'',platformName:'',groupId:null,groupName:null});setTargetCode('');setNav('项目工作台');setEpoch(value=>value+1);setMessage('');}
- function global(name:string,target=''){if(name==='母版审核'){name='母版库';target='pending';}else if(name==='产品包审核'){name='产品包管理';target='pending';}setTargetCode(target);setNav(name);setEpoch(value=>value+1);}
+ function global(name:string,target=''){if(name==='产品包管理')name='产品管理';if(name==='母版审核'){name='母版库';target='pending';}else if(name==='产品包审核'){name='产品管理';target='pending';}setTargetCode(target);setNav(name);setEpoch(value=>value+1);}
  const notify=useCallback((message:string,tone?:'success'|'error')=>{setMessage(message);setMessageTone(tone??(/失败|错误|无权|没有.*权限|不能|请先|不存在|缺失|未连接|无效|尚未/.test(message)?'error':'success'));},[]);
  const canNotice=Boolean(can('notice.view'));
  const loadNotices=useCallback(async()=>{if(!canNotice)return;const rules=encodeURIComponent(JSON.stringify([{field:'readState',operator:'eq',value:'待处理',join:'and'}]));const data=await projectApi('/api/notices?rules='+rules);setNoticeTasks(data.items.filter((row:NoticeTask)=>row.actionRequired).slice(0,5));},[canNotice]);
  useEffect(()=>{const first=setTimeout(()=>void loadNotices().catch(()=>{}),0);const timer=setInterval(()=>void loadNotices().catch(()=>{}),30000);return()=>{clearTimeout(first);clearInterval(timer);};},[loadNotices]);
  const globalNav=[['系统首页',''],['通知公告','notice.view'],['工作报备','report.create'],['项目管理','business.accounts'],['组织与权限','admin.view'],['报备模板','report.template_manage'],['配置中心','admin.settings'],['操作日志','audit.view']];
- const projectNav=project?.projectType==='cross_border'?[['项目工作台',''],['线索库','cross'],['母版库','cross'],['产品包管理','cross']]:[['项目工作台',''],['素材中心','assets'],['产品库','products'],['内容池','content'],['审核中心','review'],['发布管理','publishing'],['版本管理','versions'],['数据统计','analytics']];
+ const projectNav=project?.projectType==='cross_border'?[['项目工作台',''],['线索库','cross'],['母版库','cross'],['产品管理','cross']]:[['项目工作台',''],['素材中心','assets'],['产品库','products'],['内容池','content'],['审核中心','review'],['发布管理','publishing'],['版本管理','versions'],['数据统计','analytics']];
 
  const globalPage=globalNav.some(([name])=>name===nav);
  const visibleGlobal=globalNav.filter(([name,key])=>!key||can(key)||(name==='工作报备'&&(can('report.receive')||can('report.cc'))));
