@@ -5,7 +5,7 @@ import {getDb} from "@/db";
 import {groupScopeIds,hasGroupScope,hasPermission,type AuthUser} from "./server-auth";
 
 export function companyContentAccess(user:AuthUser){
- return user.roleCode==="super_admin"&&!user.projectConfigured;
+ return user.projectLeader===true||user.roleCode==="super_admin"&&!user.projectConfigured;
 }
 // Public alone does not make ordinary employee work visible to peers.
 export function contentVisibility(user:AuthUser){

@@ -21,10 +21,12 @@ export const permissionGroups:PermissionGroup[] = [
     {key:"asset.delete",label:"删除素材套",description:"将项目范围内的整套素材移入素材回收站并可恢复",highRisk:true},
   ]},
   {key:"notice",label:"通知公告",permissions:[
+    {key:"notice.receive",label:"接收通知",description:"可被手动选择为通知接收人"},
     {key:"notice.view",label:"查看与回复公告",description:"查看发给本人的通知并回复"},
     {key:"notice.publish",label:"发布公告",description:"向选定员工、部门或角色发布通知并查看回执"},
   ]},
   {key:"report",label:"工作报备",permissions:[
+    {key:"report.view",label:"查看工作报备页面",description:"进入工作报备，记录仍按收发关系查看"},
     {key:"report.create",label:"创建工作报备",description:"创建、保存和提交自己的日报"},
     {key:"report.receive",label:"接收工作报备",description:"作为接收人查看发给自己的日报"},
     {key:"report.cc",label:"抄送工作报备",description:"将已提交日报抄送给其他账号"},
@@ -74,7 +76,7 @@ export const permissionGroups:PermissionGroup[] = [
   { key:"admin",label:"组织与权限",permissions:[
     {key:"admin.view",label:"查看组织资料",description:"查看角色、员工账号和部门"},
     {key:"admin.users",label:"管理员工账号",description:"创建、编辑、停用账号和重置密码",highRisk:true},
-    {key:"admin.roles",label:"管理角色权限",description:"创建角色并修改权限和数据范围",highRisk:true},
+    {key:"admin.roles",label:"配置员工权限与项目角色模板",description:"配置员工公共权限、项目权限和项目角色模板",highRisk:true},
     {key:"admin.departments",label:"管理部门",description:"创建和编辑组织部门"},
     {key:"admin.groups",label:"管理内容小组",description:"创建和编辑小组资料、负责人和工作规则"},
     {key:"admin.group_members",label:"配置小组成员",description:"设置员工主小组和跨组查看、上传、审核范围",highRisk:true},

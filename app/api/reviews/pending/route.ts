@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const statuses = requestedStatus === "all" ? ["pending", "reviewing"] : requestedStatus === "reviewing" ? ["reviewing"] : ["pending"];
   const requestedGroup=new URL(request.url).searchParams.get("group");
   const reviewGroups=groupScopeIds(auth.user,"review");if(!reviewGroups.length&&auth.user.primaryGroupId)reviewGroups.push(auth.user.primaryGroupId);
-  const groupCondition=(auth.user.roleCode==="super_admin"&&!auth.user.projectConfigured)?requestedGroup&&requestedGroup!=="all"?eq(contents.groupId,Number(requestedGroup)):sql`1=1`:requestedGroup&&requestedGroup!=="all"?hasGroupScope(auth.user,"review",Number(requestedGroup))?eq(contents.groupId,Number(requestedGroup)):sql`0=1`:reviewGroups.length?inArray(contents.groupId,reviewGroups):sql`0=1`;
+  const groupCondition=auth.user.projectConfigured?sql`1=1`:(auth.user.roleCode==="super_admin"&&!auth.user.projectConfigured)?requestedGroup&&requestedGroup!=="all"?eq(contents.groupId,Number(requestedGroup)):sql`1=1`:requestedGroup&&requestedGroup!=="all"?hasGroupScope(auth.user,"review",Number(requestedGroup))?eq(contents.groupId,Number(requestedGroup)):sql`0=1`:reviewGroups.length?inArray(contents.groupId,reviewGroups):sql`0=1`;
   const rows = await db.select({
     id: contents.id, code: contents.code, title: contents.title, contentType: contents.contentType,
     reviewStatus: contents.reviewStatus, uploaderUserId:contents.uploaderUserId, contentColor:users.contentColor, uploaderName: users.displayName, productMasterId:contents.productMasterId, productName: sql<string|null>`coalesce(${productMasters.name},${products.name})`, productMasterImagePath:productMasters.imageStoragePath, productMasterStatus:productMasters.status,

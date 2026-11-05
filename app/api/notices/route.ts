@@ -1,3 +1,5 @@
+import {isProjectMaster} from '@/lib/project-visibility';
+import {getLocalDatabase} from '@/db';
 import {and,count,desc,eq,like,sql} from "drizzle-orm";
 import {randomUUID} from "node:crypto";
 import {getDb} from "@/db";
@@ -20,7 +22,7 @@ export async function GET(request:Request){
  const user=auth.user,url=new URL(request.url),page=Math.max(1,Math.min(100000,Math.floor(Number(url.searchParams.get("page"))||1))),pageSize=[20,50,100].includes(Number(url.searchParams.get("pageSize")))?Number(url.searchParams.get("pageSize")):20;
  const visible=sql`(${notices.authorUserId}=${user.id} OR EXISTS (SELECT 1 FROM notice_receipts r WHERE r.notice_id=${notices.id} AND r.user_id=${user.id}))`;
  const rules=listRules(url.searchParams.get("rules"),{query:{expression:sql`${notices.title}`},owner:{expression:sql`(SELECT display_name FROM users WHERE id=${notices.authorUserId})`},createdAt:{expression:sql`${notices.createdAt}`,type:"date"},readState:{expression:sql`CASE WHEN ${actionNeeded(user.id)} THEN '待处理' WHEN EXISTS (SELECT 1 FROM notice_receipts r WHERE r.notice_id=${notices.id} AND r.user_id=${user.id}) THEN '已处理' ELSE '我发布的' END`}});
- const condition=and(eq(notices.publishStatus,"published"),rules,user.roleCode==="super_admin"?undefined:visible,url.searchParams.get("q")?like(notices.title,`%${url.searchParams.get("q")?.slice(0,100)}%`):undefined,url.searchParams.get("unread")==="1"?actionNeeded(user.id):undefined);
+ const condition=and(eq(notices.publishStatus,"published"),rules,isProjectMaster(getLocalDatabase(),user)?undefined:visible,url.searchParams.get("q")?like(notices.title,`%${url.searchParams.get("q")?.slice(0,100)}%`):undefined,url.searchParams.get("unread")==="1"?actionNeeded(user.id):undefined);
  const db=getDb();const [total]=await db.select({total:count()}).from(notices).where(condition);
  const [pending]=await db.select({total:count()}).from(noticeReceipts).innerJoin(notices,eq(notices.id,noticeReceipts.noticeId)).where(and(eq(noticeReceipts.userId,user.id),eq(notices.publishStatus,"published"),sql`((${notices.requiresReply}=0 AND ${noticeReceipts.readAt} IS NULL) OR (${notices.requiresReply}=1 AND NOT EXISTS (SELECT 1 FROM notice_replies rp WHERE rp.notice_id=${notices.id} AND rp.user_id=${user.id})))`));
  const items=await db.select({id:notices.id,title:notices.title,createdAt:notices.createdAt,authorUserId:notices.authorUserId,authorName:users.displayName,contentColor:users.contentColor,requiresReply:notices.requiresReply,

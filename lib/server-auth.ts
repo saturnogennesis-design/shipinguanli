@@ -1,3 +1,4 @@
+import {commonExpanded} from './common-permissions';
 import {projectProfile,applyProjectProfile as bindProfile} from './project-profile';
 import {projectPermissionGranted,projectPermissionKeys} from './project-permission-catalog';
 import {isProjectMaster} from './project-visibility';
@@ -15,6 +16,8 @@ const SESSION_DAYS = 7;
 export type AuthUser = {
   projectId?: number;
   projectConfigured?: boolean;
+  projectLeader?:boolean;
+  commonConfigured?:boolean;
   projectGroupIds?: number[];
   id: number;
   username: string;
@@ -100,15 +103,18 @@ export async function getCurrentUser(request: Request): Promise<AuthUser | null>
   const allowed=overrideRows.filter(item=>item.effect==="allow").map(item=>item.permissionKey);
   const deniedPermissions=overrideRows.filter(item=>item.effect==="deny").map(item=>item.permissionKey);
   permissions=[...new Set([...permissions,...dutyPermissions({primaryGroupId:row.primaryGroupId,groupScopes,accountResponsibilities}),...allowed])].filter(key=>!deniedPermissions.includes(key));
+  const common=getLocalDatabase().prepare('SELECT permissions_json FROM user_common_permissions WHERE user_id=?').get(row.id);
+  if(common){const saved=commonExpanded(JSON.parse(String(common.permissions_json)));permissions=[...permissions.filter(k=>/^(cross|asset|content|review|publishing|version|analytics)\./.test(k)||k.startsWith('business.')&&k!=='business.accounts'),...saved];}
   return {
     id: row.id,
+    commonConfigured:!!common,
     username: row.username,
     displayName: row.displayName,
     mustChangePassword: row.mustChangePassword,
     roleCode: row.roleCode,
     roleName: row.roleName,
     dataScope: row.dataScope,
-    permissions:isProjectMaster(getLocalDatabase(),row)?['*']:permissions,
+    permissions:isProjectMaster(getLocalDatabase(),row)?['*']:commonExpanded(permissions),
     deniedPermissions:isProjectMaster(getLocalDatabase(),row)?[]:deniedPermissions,
     primaryGroupId: row.primaryGroupId,
     groupScopes,
@@ -128,14 +134,30 @@ export function projectPermission(user:AuthUser,permission:string,projectId:numb
  if(isProjectMaster(db,user))return true;
  const profile=projectProfile(db,projectId,user.id);
  if(profile)return Number(profile.scope_version)>=2?projectPermissionGranted(profile.permissions,permission):permissionGranted(projectPermissionKeys(profile.permissions),permission);
+ if(db.prepare('SELECT 1 FROM user_common_permissions WHERE user_id=?').get(user.id))return false;
+ // Legacy work assigned in project A must not become a write grant in project B.
+ if(user.roleCode!=='super_admin'){
+  const assigned=(types:string[])=>Boolean(db.prepare(`SELECT 1 FROM user_account_responsibilities WHERE user_id=? AND account_id=? AND responsibility_type IN (${types.map(()=>'?').join(',')})`).get(user.id,projectId,...types));
+  const scoped=(scope:string)=>Boolean(db.prepare("SELECT 1 FROM content_groups g WHERE g.account_id=? AND g.status='active' AND (g.id=(SELECT primary_group_id FROM users WHERE id=?) OR EXISTS(SELECT 1 FROM user_group_scopes s WHERE s.user_id=? AND s.group_id=g.id AND s.scope_type=?))").get(projectId,user.id,user.id,scope));
+  if((permission==='content.upload'||permission==='version.upload')&&!scoped('upload'))return false;
+  if(permission.startsWith('review.')&&!scoped('review'))return false;
+  if(permission.startsWith('publishing.')&&!assigned(['publisher']))return false;
+  if(permission.startsWith('asset.')){
+   const member=Boolean(db.prepare("SELECT 1 FROM content_groups g JOIN group_memberships m ON m.group_id=g.id WHERE g.account_id=? AND m.user_id=? AND g.status='active'").get(projectId,user.id));
+   if(permission==='asset.upload'&&!assigned(['material','material_upload']))return false;
+   if(permission==='asset.review'&&!assigned(['material','material_review']))return false;
+   if(!member&&!assigned(['material','material_upload','material_review']))return false;
+  }
+ }
  // Existing projects retain their role baseline until an explicit project profile is saved.
  const legacy=permission==='cross.edit'?'cross.create':permission;
  if(permission.endsWith('.view')){const prefix=permission.split('.')[0]+'.';if(user.permissions.some(key=>key.startsWith(prefix)&&!user.deniedPermissions.includes(key)))return true;}
  return user.roleCode==='super_admin'||(!user.deniedPermissions.includes(permission)&&(permissionGranted(user.permissions,permission)||!user.deniedPermissions.includes(legacy)&&permissionGranted(user.permissions,legacy)));
 }
 export function hasPermission(user: AuthUser, permission: string) {
+ if(user.commonConfigured&&!user.projectId&&!isProjectMaster(getLocalDatabase(),user))return commonExpanded(user.permissions).includes(permission);
  if(user.projectId&&/^(cross|asset|content|review|publishing|version|analytics|business)\./.test(permission))return projectPermission(user,permission,user.projectId);
-  return isProjectMaster(getLocalDatabase(),user) || user.roleCode === "super_admin" || (!user.deniedPermissions.includes(permission)&&permissionGranted(user.permissions, permission));
+  return isProjectMaster(getLocalDatabase(),user) || (!user.commonConfigured&&user.roleCode === "super_admin") || ((user.commonConfigured||!user.deniedPermissions.includes(permission))&&permissionGranted(commonExpanded(user.permissions), permission));
 }
 
 export function groupScopeIds(user:AuthUser,scopeType:string){
@@ -143,6 +165,8 @@ export function groupScopeIds(user:AuthUser,scopeType:string){
 }
 
 export function hasGroupScope(user:AuthUser,scopeType:string,groupId:number|null|undefined){
+  if(user.projectConfigured&&scopeType==="review")return true;
+  if(user.projectLeader&&scopeType==="view")return true;
   if(!groupId)return false;
   if(user.projectConfigured)return (scopeType==="view"?user.groupScopes.view??[]:user.projectGroupIds??[]).includes(groupId);
   if(user.roleCode==="super_admin")return true;

@@ -1,5 +1,6 @@
 "use client";
 import {ContentImageGallery} from "./content-image-gallery";
+import {EmployeeAccess} from "./employee-access";
 import {ProjectPermissions} from "./project-permissions";
 
 import {ThumbnailImage} from "./thumbnail-image";
@@ -1367,16 +1368,16 @@ function ContentPool({
   const [boardPermissions,setBoardPermissions]=useState<string[]>([]);
   const [companyManager,setCompanyManager]=useState(false);
   const [contentGroups,setContentGroups]=useState<Array<{id:number;name:string;code:string;accountId:number|null;accountName:string|null;themeColor:string|null;coverPath:string|null;canView?:boolean;canUpload?:boolean}>>([]);
-  const [groupScope,setGroupScope]=useState("mine");
+  const [groupScope,setGroupScope]=useState("all");
   const [uploadGroupId,setUploadGroupId]=useState("");
   const [categories,setCategories]=useState<Array<{id:number;name:string;status:string}>>([]);
   const [uploadCategoryId,setUploadCategoryId]=useState("");
   useEffect(()=>{void fetch('/api/content-categories').then(response=>response.json()).then(data=>setCategories(data.items??[]));},[]);
   const scrollPositions=useRef<Record<number,number>>({});
-  const boardCan=(permission:string)=>permissionGranted(boardPermissions,permission);
-  useEffect(()=>{void fetch("/api/auth/me",{cache:"no-store"}).then(r=>r.json()).then(({user})=>{
-    setBoardPermissions(user?.roleCode==="super_admin"?["*"]:user?.permissions??[]);
-    setCompanyManager(user?.roleCode==="super_admin"||(user?.dataScope==="company"&&permissionGranted(user?.permissions??[],"content.delete")&&["admin.users","review.process","publishing.assign","publishing.status"].some(key=>permissionGranted(user?.permissions??[],key))));
+  const boardCan=(permission:string)=>boardPermissions.includes("*")||boardPermissions.includes(permission);
+  useEffect(()=>{void fetch(`/api/auth/me?projectId=${context?.accountId??""}`,{cache:"no-store"}).then(r=>r.json()).then(({user})=>{
+    setBoardPermissions(user?.permissions??[]);
+    setCompanyManager(Boolean(user?.projectLeader||user?.projectMaster));
   });},[]);
   useEffect(()=>{void Promise.all([fetch("/api/groups?scope=view",{cache:"no-store"}).then(r=>r.ok?r.json():{groups:[]}),fetch("/api/groups?scope=upload",{cache:"no-store"}).then(r=>r.ok?r.json():{groups:[]})]).then(([visible,uploadable])=>{const visibleIds=new Set<number>((visible.groups??[]).map((item:{id:number})=>item.id));const uploadIds=new Set<number>((uploadable.groups??[]).map((item:{id:number})=>item.id));const combined=[...(visible.groups??[]),...(uploadable.groups??[])].filter((item,index,all)=>all.findIndex(other=>other.id===item.id)===index).map(item=>({...item,canView:visibleIds.has(item.id),canUpload:uploadIds.has(item.id)}));setContentGroups(combined);const preferred=uploadable.groups?.find((item:{id:number;accountId:number|null})=>item.id===context?.groupId&&item.accountId===context.accountId)??uploadable.groups?.find((item:{accountId:number|null})=>item.accountId===context?.accountId)??uploadable.groups?.[0];setUploadGroupId(current=>current||String(preferred?.id??""));setAccount(current=>current||String(preferred?.accountId??""));});},[context?.accountId,context?.groupId]);
   useEffect(()=>{void fetch("/api/system/settings",{cache:"no-store"}).then(async response=>response.ok?response.json():null).then(data=>{if(!data?.settings)return;const next={...emptyUiSettings,...data.settings};setUiSettings(next);const size=Number(next.defaultPageSize);if([20,50,100].includes(size))setListPageSize(size);});},[]);
@@ -1483,7 +1484,6 @@ function ContentPool({
     { key: "categoryId", label: "业务分类", type: "select", options: categories.map(category=>({value:String(category.id),label:category.name})), getValue: (row) => String(row.categoryId??"") },
     { key: "contentType", label: "文件格式", type: "select", options: ["视频", "图文"].map((label) => ({ value: label, label })), getValue: (row) => row.kind },
     { key: "owner", label: "上传员工", type: "select", options: [...new Set(rows.map((row) => row.owner))].map((label) => ({ value: label, label })), getValue: (row) => row.owner },
-    { key: "group", label: "内容小组", type: "select", options: [...new Set(rows.map((row) => row.groupName).filter(Boolean))].map((label) => ({ value: String(label), label: String(label) })), getValue: (row) => row.groupName??"未分组" },
     { key: "product", label: "关联商品", type: "select", options: [...new Set(rows.map((row) => row.product))].map((label) => ({ value: label, label })), getValue: (row) => row.product },
     { key: "account", label: "所属项目", type: "select", options: [...new Set(rows.map((row) => row.account))].map((label) => ({ value: label, label })), getValue: (row) => row.account },
     { key: "visibility", label: "可见范围", type: "select", options: ["仅本人和管理员", "全部可见"].map((label) => ({ value: label, label })), getValue: (row) => row.visibility },
@@ -1522,7 +1522,7 @@ function ContentPool({
         groupScope?:string;
       };
       setSmartRules(state.smartRules ?? []);
-      setGroupScope(state.groupScope??"mine");
+      setGroupScope("all");
       setListPageSize(
         [20, 50, 100].includes(state.pageSize ?? 0) ? state.pageSize! : 20,
       );
@@ -2481,7 +2481,6 @@ function ContentPool({
         {boardCan("content.delete")?<button onClick={()=>setTrashOpen(true)}>回收站</button>:null}</div>
       </div>
       <section className="panel content-board-panel">
-        <div className="group-scope-strip"><button className={groupScope==="mine"?"selected":""} onClick={()=>setGroupScope("mine")}><strong>我的内容</strong><small>仅本人上传</small></button>{contentGroups.filter(group=>group.canView).map(group=><button key={group.id} className={groupScope===String(group.id)?"selected":""} style={{borderColor:group.themeColor??"#64748b"}} onClick={()=>setGroupScope(String(group.id))}><span className="group-cover" style={{background:group.themeColor??"#64748b"}}>{group.name[0]}</span><strong>{group.name}</strong><small>{group.code}</small></button>)}</div>
         <RuleFilterBar moduleKey="contents" fields={contentFilterFields} rules={smartRules} onChange={setSmartRules} view={{sort:boardSort,group:"status"}} onViewChange={view=>setBoardSort(view.sort??"default")} />
         <div className="content-board content-board-grid">
           {["草稿","待审核","已驳回","已通过"].map((status,lane)=>{
@@ -2504,7 +2503,7 @@ function ContentPool({
                   <td><input aria-label={`选择${row.title}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={e=>setSelectedIds(e.target.checked?[...selectedIds,row.id]:selectedIds.filter(id=>id!==row.id))}/></td><td>{row.status}</td>
                   <td><div className="expanded-content-title"><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} onOpen={()=>openDetail(row.id,"view")}/><button className="content-detail-link" onClick={()=>openDetail(row.id,"view")}>{row.title}</button>{row.categoryName?<small>{row.categoryName}</small>:null}</div></td><td>{row.owner}</td><td><span className="expanded-product-cell"><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product}</span></span></td><td>{row.version}</td><td>{row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`}</td><td>{formatBytes(row.fileSize??0)}</td><td>{row.time}</td><td className="expanded-review">{row.reviewComment||row.rejectionReason||"—"}</td>
                 </tr>)}</tbody></table>{!laneRows.length?<div className="empty-state">暂无符合条件的内容</div>:null}</div>{pager}
-                {selectedIds.length?<footer><span>已选{selectedIds.length}条</span>{boardCan("content.update")&&selected.some(row=>row.status==="草稿")?<><button onClick={()=>{setBatchValue("");setBatchModal("rename");}}>批量改名称</button><button onClick={()=>{setBatchValue("");setBatchModal("remark");}}>批量写备注</button></>:null}{boardCan("content.submit")?<button onClick={submitDrafts}>提交草稿</button>:null}{boardCan("content.withdraw")?<button onClick={withdraw}>批量撤回审核</button>:null}{boardCan("content.archive")?<button onClick={()=>void archiveSelected()}>{archivedView?"恢复所选":"归档所选"}</button>:null}{boardCan("content.delete")?<button onClick={deleteSelected}>移入回收站</button>:null}<button onClick={()=>setSelectedIds([])}>取消选择</button></footer>:null}
+                {selectedIds.length?<footer><span>已选{selectedIds.length}条</span>{boardCan("content.edit")&&selected.some(row=>row.status==="草稿")?<><button onClick={()=>{setBatchValue("");setBatchModal("rename");}}>批量改名称</button><button onClick={()=>{setBatchValue("");setBatchModal("remark");}}>批量写备注</button></>:null}{boardCan("content.submit")?<button onClick={submitDrafts}>提交草稿</button>:null}{boardCan("content.withdraw")?<button onClick={withdraw}>批量撤回审核</button>:null}{boardCan("content.archive")?<button onClick={()=>void archiveSelected()}>{archivedView?"恢复所选":"归档所选"}</button>:null}{boardCan("content.delete")?<button onClick={deleteSelected}>移入回收站</button>:null}<button onClick={()=>setSelectedIds([])}>取消选择</button></footer>:null}
               </CenterDialog>:null}
             </section>;
           })}
@@ -2598,7 +2597,7 @@ function ContentPool({
                     disabled
                     onChange={(e) => setAccount(e.target.value)}
                   >
-                    <option value="">由内容小组决定</option>
+                    <option value="">使用项目默认规则</option>
                     {businessData.accounts
                       .filter((item) => item.status === "active")
                       .map((item) => (
@@ -2609,7 +2608,6 @@ function ContentPool({
                   </select>
                 </label>
                 <label><span>业务分类</span><select value={uploadCategoryId} onChange={event=>setUploadCategoryId(event.target.value)}><option value="">未分类</option>{categories.filter(category=>category.status==="active").map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-                <label><span>内容归属小组 *</span><select value={uploadGroupId} onChange={event=>{const group=contentGroups.find(item=>String(item.id)===event.target.value);setUploadGroupId(event.target.value);setAccount(String(group?.accountId??""));}}><option value="">请选择小组</option>{contentGroups.filter(item=>item.canUpload&&item.accountId).map(item=><option value={item.id} key={item.id}>{item.accountName}｜{item.name}</option>)}</select><small>账号由小组自动确定；创建后不可更换，后续版本沿用。</small></label>
                 <label>
                   <span>可见范围</span>
                   <select
@@ -3257,7 +3255,6 @@ function ReviewCenter({
           </div>
         </div>
         <section className="panel module-panel">
-          {reviewGroups.length>1?<div className="group-scope-strip"><button className={reviewGroup==="all"?"selected":""} onClick={()=>setReviewGroup("all")}><strong>全部审核范围</strong><small>跨组汇总</small></button>{reviewGroups.map(group=><button key={group.id} className={reviewGroup===String(group.id)?"selected":""} style={{borderColor:group.themeColor??"#64748b"}} onClick={()=>setReviewGroup(String(group.id))}><span className="group-cover" style={{background:group.themeColor??"#64748b"}}>{group.name[0]}</span><strong>{group.name}</strong><small>{group.code}</small></button>)}</div>:null}
           <div className="review-filters legacy-list-filter" aria-hidden="true">
             <label>
               <span>⌕</span>
@@ -9401,6 +9398,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
     null,
   );
   const [saving, setSaving] = useState(false);
+  const employeeAccess=useRef<{save:()=>Promise<boolean>;dirty:boolean}|null>(null);
   const [roleDraft, setRoleDraft] = useState({
     id: 0,
     name: "",
@@ -9442,7 +9440,6 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
   const userFields = useMemo<SmartFilterField<AdminData["users"][number]>[]>(() => [
     { key: "query", label: "员工/登录账号", type: "text", getValue: (item) => [item.displayName, item.username] },
     { key: "department", label: "部门", type: "select", options: [...new Set(data.users.map((item) => item.departmentName ?? "未分配"))].map((value) => ({ value, label: value })), getValue: (item) => item.departmentName ?? "未分配" },
-    { key: "role", label: "角色", type: "select", options: [...new Set(data.users.map((item) => item.roleName))].map((value) => ({ value, label: value })), getValue: (item) => item.roleName },
     { key: "status", label: "账号状态", type: "select", options: [{ value: "active", label: "启用" }, { value: "inactive", label: "停用" }], getValue: (item) => item.status },
     { key: "mustChangePassword", label: "首次改密", type: "select", options: [{ value: "是", label: "待修改" }, { value: "否", label: "已完成" }], getValue: (item) => item.mustChangePassword ? "是" : "否" },
     { key: "lastLoginAt", label: "最后登录", type: "date", getValue: (item) => item.lastLoginAt },
@@ -9533,7 +9530,6 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
               entity: "user",
               id:userDraft.id,username:userDraft.username,displayName:userDraft.displayName,
               password:userDraft.password,status:userDraft.status,contentColor:userDraft.contentColor,
-              roleId: Number(userDraft.roleId),
               departmentId: Number(userDraft.departmentId) || null,
 
             }
@@ -9563,11 +9559,12 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(draft),
       });
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as { error?: string;id?:number };
       if (!response.ok) throw new Error(result.error ?? "保存失败");
+      if(drawer==='user'&&id&&employeeAccess.current&&!await employeeAccess.current.save())return;
       await load();
-      setDrawer(null);
-      notify(id ? "资料已保存并立即生效" : "资料已创建并立即生效");
+      if(drawer==='user'&&!id&&result.id)setUserDraft({...userDraft,id:result.id});else setDrawer(null);
+      notify(id ? "基本资料已保存" : "资料已创建并立即生效");
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : "保存失败");
     } finally {
@@ -9588,7 +9585,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
         status: toggleUser.status === "active" ? "inactive" : "active",
       }),
     });
-    const result = (await response.json()) as { error?: string };
+    const result = (await response.json()) as { error?: string;id?:number };
     if (!response.ok) {
       notify(result.error ?? "账号状态更新失败");
       return;
@@ -9602,10 +9599,10 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
       ? data.canManageRoles ? "新建角色" : ""
       : tab === "employees"
         ? data.canManageUsers ? "创建员工账号" : ""
-        : data.canManageGroups ? "新建项目小组" : "";
+        : data.canManageDepartments ? "新建部门" : "";
   return (
     <>
-      
+
       <ModuleHeader
         title="组织与权限"
         description=""
@@ -9615,18 +9612,12 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
             ? openRole()
             : tab === "employees"
               ? openUser()
-              : openGroup()
+              : openDepartment()
         }
       />
       <section className="panel module-panel">
-        <div className="org-tabs"><button className={tab === "projects" ? "selected" : ""} onClick={() => setTab("projects")}>项目权限</button>
-          <button className={tab === "organization" ? "selected" : ""} onClick={() => setTab("organization")}>组织架构与小组</button>
-          <button
-            className={tab === "roles" ? "selected" : ""}
-            onClick={() => setTab("roles")}
-          >
-            系统角色
-          </button>
+        <div className="org-tabs"><button className={tab === "projects" ? "selected" : ""} onClick={() => setTab("projects")}>项目配置</button>
+          <button className={tab === "organization" ? "selected" : ""} onClick={() => setTab("organization")}>组织架构</button>
           <button
             className={tab === "employees" ? "selected" : ""}
             onClick={() => setTab("employees")}
@@ -9646,7 +9637,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
               <table className="permission-table grouped">
                 <thead>
                   <tr>
-                    <th>角色</th>
+
                     <th>成员</th>
                     <th>数据范围</th>
                     {permissionGroups.filter(group=>["notice","report","admin","audit"].includes(group.key)).map((group) => (
@@ -9724,8 +9715,8 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                     <th>员工</th>
                     <th>登录账号</th>
                     <th>部门</th>
-                    <th>角色</th>
-                    <th>项目小组</th>
+
+
                     <th>状态</th>
                     <th>首次改密</th>
                     <th>最后登录</th>
@@ -9745,10 +9736,8 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                         <code>{user.username}</code>
                       </td>
                       <td>{user.departmentName ?? "未分配"}</td>
-                      <td>
-                        <Badge tone="blue">{user.roleName}</Badge>
-                      </td>
-                      <td>按项目配置</td>
+
+
                       <td>
                         <Badge
                           tone={user.status === "active" ? "green" : "slate"}
@@ -9783,7 +9772,6 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
             </div>
           </>
         )}
-        {tab==="organization"&&<div className="organization-combined"><header><div><h3>项目小组</h3><span>{data.groups.filter(item=>item.status==="active").length} 个启用小组</span></div>{data.canManageDepartments?<button onClick={()=>openDepartment()}>＋ 新建部门</button>:null}</header><div className="department-list">{data.groups.map(group=><article className="department-row" key={group.id} style={{borderLeft:`8px solid ${group.themeColor??"#64748b"}`}}><span className="mini-avatar" style={{background:group.themeColor??"#64748b"}}>{group.name[0]}</span><div><strong>{group.name}</strong><small>{group.accountName??"项目待归类"} · {group.code} · {group.businessDirection||"未填写业务方向"} · {group.members} 名成员 · 负责人：{data.users.find(user=>user.id===group.leaderUserId)?.displayName??"未设置"}</small></div><Badge tone={group.status==="active"?"green":"slate"}>{group.status==="active"?"启用":"停用"}</Badge>{data.canManageGroups?<button onClick={()=>openGroup(group)}>配置</button>:null}</article>)}</div></div>}
         {tab === "organization" && (
           <>
             <RuleFilterBar moduleKey="departments" fields={departmentFields} rules={departmentRules} onChange={setDepartmentRules} />
@@ -10026,35 +10014,17 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                       ))}
                     </select>
                   </label>
-                  <label>
-                    <span>系统角色 *</span>
-                    <select
-                      value={userDraft.roleId}
-                      onChange={(event) =>
-                        setUserDraft({
-                          ...userDraft,
-                          roleId: event.target.value,
-                        })
-                      }
-                    >
-                      {data.roles.map((item) => (
-                        <option value={item.id} key={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+
                   {(!userDraft.id || data.canManageSensitiveAccounts) && <label>
                     <span>{userDraft.id ? "重置密码（不修改可留空）" : "初始密码 *"}</span>
                     <input type="password" value={userDraft.password} onChange={(event) => setUserDraft({ ...userDraft, password: event.target.value })} />
                   </label>}
                   <label><span>员工识别颜色</span><select value={userDraft.contentColor} onChange={event=>setUserDraft({...userDraft,contentColor:event.target.value})}><option value="">自动分配</option>{employeePalette.map((color,index)=><option value={color} key={color}>中性色 {index+1}</option>)}</select><i className="employee-color-preview" style={{background:employeeColor(userDraft.id||userDraft.username,userDraft.contentColor)}}/></label>
                   {data.roles.find(item=>String(item.id)===String(userDraft.roleId))?.code==="super_admin"?<div className="employee-duty-fixed"><strong>全系统范围</strong><p>超级管理员固定拥有全部业务范围，不需要逐项设置。</p></div>:<>
-                    <p className="project-permission-notice">项目工作、小组和角色请在“项目权限”中按项目配置。这里仅维护员工基本信息及系统角色。</p>
+                    <EmployeeAccess ref={employeeAccess} userId={userDraft.id} notify={notify}/>
                   </>}
                 </>
               )}
-              {drawer==="group"&&<><label><span>小组名称 *</span><input value={groupDraft.name} onChange={event=>setGroupDraft({...groupDraft,name:event.target.value})}/></label><label><span>小组编号</span><input disabled={Boolean(groupDraft.id)} placeholder="留空自动生成" value={groupDraft.code} onChange={event=>setGroupDraft({...groupDraft,code:event.target.value})}/></label><label><span>所属项目 *</span><select required value={groupDraft.accountId} onChange={event=>setGroupDraft({...groupDraft,accountId:event.target.value})}><option value="">请选择项目</option>{data.accounts.filter(item=>item.status==="active"||String(item.id)===groupDraft.accountId).map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>所属部门</span><select value={groupDraft.departmentId} onChange={event=>setGroupDraft({...groupDraft,departmentId:event.target.value})}><option value="">未绑定</option>{data.departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>小组负责人（不自动获得审核权）</span><select value={groupDraft.leaderUserId} onChange={event=>setGroupDraft({...groupDraft,leaderUserId:event.target.value})}><option value="">未设置</option>{data.users.filter(item=>item.status==="active").map(item=><option value={item.id} key={item.id}>{item.displayName}</option>)}</select></label><label><span>识别颜色</span><input type="color" value={groupDraft.themeColor} onChange={event=>setGroupDraft({...groupDraft,themeColor:event.target.value})}/></label><label><span>业务方向</span><input value={groupDraft.businessDirection} onChange={event=>setGroupDraft({...groupDraft,businessDirection:event.target.value})}/></label><label><span>小组说明</span><textarea value={groupDraft.description} onChange={event=>setGroupDraft({...groupDraft,description:event.target.value})}/></label>{groupDraft.id&&<label><span>状态</span><select value={groupDraft.status} onChange={event=>setGroupDraft({...groupDraft,status:event.target.value})}><option value="active">启用</option><option value="inactive">停用</option></select></label>}</>}
               {drawer === "department" && (
                 <>
                   <label>
@@ -10094,13 +10064,13 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
               )}
             </div>
             <div className="drawer-actions">
-              <button onClick={() => setDrawer(null)}>取消</button>
+              <button onClick={() => {if(employeeAccess.current?.dirty&&!window.confirm("放弃未保存的员工权限修改？"))return;setDrawer(null);}}>取消</button>
               <button
                 className="primary-button"
                 disabled={saving}
                 onClick={() => void save()}
               >
-                {saving ? "保存中" : "保存"}
+                {saving ? "保存中" : drawer==='user'?"保存基本资料":"保存"}
               </button>
             </div>
           </aside>
@@ -10683,11 +10653,9 @@ function ReportTemplatePanel({notify}:Pick<Props,"notify">){
 }
 
 function FixedReportTemplatePanel({notify}:Pick<Props,"notify">){
- const [data,setData]=useState<any>({templates:[],assignments:[],users:[]});const [open,setOpen]=useState<any>(null);const [selected,setSelected]=useState<number[]>([]);
- const load=()=>void fetch("/api/report-templates",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>d&&setData(d));useEffect(load,[]);
- const begin=(template:any)=>{setSelected(data.assignments.filter((a:any)=>a.templateId===template.id).map((a:any)=>a.userId));setOpen(template);};
- const save=async()=>{if(!open)return;const r=await fetch("/api/report-templates",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:open.id,action:"assign",userIds:selected})});const d=await r.json();if(!r.ok){notify(d.error??"保存失败","error");return;}notify(open.name+"可用账号已保存","success");setOpen(null);load();};
- return <section className="panel report-template-panel"><header className="panel-heading"><div><h2>模板管理</h2><p>系统固定提供报备模板，只配置哪些账号可以创建；接收和抄送不受此配置限制。</p></div></header><div className="report-template-list">{data.templates.map((template:any)=><article key={template.id}><div className="fixed-template-icon">{template.code==="RPT-SPOKEN-COPY"?"文":"日"}</div><strong>{template.name}</strong><span>{template.code==="RPT-SPOKEN-COPY"?"商品 · 口播文案 · 备注":"今日完成的工作 · 明日工作计划 · 备注"}</span><small>模板内容固定，不支持删除和编辑</small><div><button className="primary-button" onClick={()=>begin(template)}>配置可用账号</button></div></article>)}</div>{open?<CenterDialog title={"配置"+open.name+"可用账号"} onClose={()=>setOpen(null)}><div className="report-form"><p>被勾选的账号可以在工作报备中创建此模板；未勾选账号仍可接收、查看和抄送。</p><div className="template-account-list">{data.users.map((u:any)=><label key={u.id}><input type="checkbox" checked={selected.includes(u.id)} onChange={e=>setSelected(current=>e.target.checked?[...new Set([...current,u.id])]:current.filter(id=>id!==u.id))}/><span>{u.name}</span></label>)}</div><footer><button onClick={()=>setOpen(null)}>取消</button><button className="primary-button" onClick={()=>void save()}>保存</button></footer></div></CenterDialog>:null}</section>;
+ const [templates,setTemplates]=useState<Array<{id:number;name:string}>>([]);
+ useEffect(()=>{let live=true;fetch('/api/report-templates',{cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);if(live)setTemplates(d.templates??[]);}).catch(e=>notify(e.message));return()=>{live=false;};},[notify]);
+ return <section className="panel report-template-panel"><header className="panel-heading"><div><h2>报备模板</h2><p>创建和接收权限统一在员工账号的公共区域配置，不再分配可用账号。</p></div></header><div className="report-template-list">{templates.map(t=><article key={t.id}><strong>{t.name}</strong><span>今日完成的工作 · 明日工作计划 · 备注</span><small>系统固定模板</small></article>)}</div></section>;
 }
 
 function RichReportField({value,onChange}:{value:string;onChange:(value:string)=>void}){return <div className="report-richtext" contentEditable suppressContentEditableWarning dangerouslySetInnerHTML={{__html:value}} onInput={e=>onChange(e.currentTarget.innerHTML)} />;}
@@ -11012,7 +10980,7 @@ export function ModuleView({
       {name === "通知公告" && <CommunicationCenter mode="notices" notify={notify} />}
       {name === "素材中心" && <MaterialCenterV3 notify={notify} />}
       {name === "工作报备" && <WorkReportCenterV3 notify={notify} />}
-      {name === "报备模板" && <><ModuleHeader title="模板管理" description="固定日报模板，仅配置可创建账号。"/><FixedReportTemplatePanel notify={notify}/></>}
+      {name === "报备模板" && <><ModuleHeader title="模板管理" description="固定日报模板；使用权限在员工账号配置。"/><FixedReportTemplatePanel notify={notify}/></>}
       {name === "组织与权限" && <OrganizationLive notify={notify} />}
       {name === "配置中心" && <SettingsCenter notify={notify} />}
       {name === "操作日志" && <AuditLogLive notify={notify} />}

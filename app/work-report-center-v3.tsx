@@ -31,7 +31,7 @@ export function WorkReportCenterV3({notify}:Props){
  useEffect(()=>{if(mode==="list"&&listRef.current)listRef.current.scrollTop=scroll.current;},[mode]);
  async function work(fn:()=>Promise<void>){if(lock.current)return;lock.current=true;setBusy(true);try{await fn();}catch(e){notify((e as Error).message,"error");}finally{lock.current=false;setBusy(false);}}
  function leave(){setConfirm({title:"退出编辑？",body:"未保存的修改将丢失，已保存的草稿仍会保留。",run:()=>{setMode("list");setPendingFiles([]);setCurrent(null);}});}
- function newReport(r?:Row,template?:Row){setCurrent(r?.id?r:null);setPendingFiles([]);setProductPickerOpen(false);setForm({completed:text(r?.completed??""),plan:text(r?.plan??""),remark:text(r?.remark??""),recipientUserId:String(r?.recipientUserId??data.lastRecipientUserId??""),productMasterId:String(r?.productMasterId??""),templateCode:r?.templateCode??template?.code??"RPT-DAILY"});setMode("edit");setChooseTemplate(false);}
+ function newReport(r?:Row,template?:Row){setCurrent(r?.id?r:null);setPendingFiles([]);setProductPickerOpen(false);setForm({completed:text(r?.completed??""),plan:text(r?.plan??""),remark:text(r?.remark??""),recipientUserId:String(r?.recipientUserId??""),productMasterId:String(r?.productMasterId??""),templateCode:r?.templateCode??template?.code??"RPT-DAILY"});setMode("edit");setChooseTemplate(false);}
  async function editReceived(row:Row){await work(async()=>{const d=await api("/api/reports/"+row.id+"?markRead=0");newReport(d.report);});}
  async function view(row:Row){await work(async()=>{const d=await api("/api/reports/"+row.id+(row.ccId?"?ccId="+row.ccId:""));setCurrent(d.report);setMode("view");await load();});}
  function valid(s:string){return s.replace(/^\s*\d+[.、)]\s*/gm,"").trim().length>0;}

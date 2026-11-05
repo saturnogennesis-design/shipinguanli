@@ -1,3 +1,5 @@
+import {effectiveCommon} from '@/lib/common-permissions';
+import {getLocalDatabase} from '@/db';
 import { and,eq,inArray,isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { users,workReports,workReportCc,workReportRecipientReads,productMasters,workReportActivityLogs,workReportAttachments } from "@/db/schema";
@@ -32,12 +34,12 @@ export async function POST(request:Request,{params}:Context){
  const previous=await db.select({userId:workReportCc.userId,fromUserId:workReportCc.fromUserId,level:workReportCc.level}).from(workReportCc).where(eq(workReportCc.reportId,id));
  if(body.action==="options"){
    const list=await db.select({id:users.id,name:users.displayName,departmentId:users.departmentId}).from(users).where(eq(users.status,"active"));
-   return Response.json({users:list.filter(p=>p.id!==u.id&&p.id!==report.submitterUserId&&p.id!==report.recipientUserId).map(p=>({...p,disabled:previous.some(x=>x.userId===p.id),reason:previous.some(x=>x.userId===p.id&&x.fromUserId===u.id)?"已抄送":"不可选择"}))});
+   return Response.json({users:list.filter(p=>effectiveCommon(getLocalDatabase(),p.id,'report.receive')&&p.id!==u.id&&p.id!==report.submitterUserId&&p.id!==report.recipientUserId).map(p=>({...p,disabled:previous.some(x=>x.userId===p.id),reason:previous.some(x=>x.userId===p.id&&x.fromUserId===u.id)?"已抄送":"不可选择"}))});
  }
  const ids:number[]=[...new Set<number>((Array.isArray(body.userIds)?body.userIds:[]).map(Number))];
  if(!ids.length||ids.some(id=>!Number.isSafeInteger(id)||id===u.id||id===report.submitterUserId||id===report.recipientUserId||previous.some(p=>p.userId===id)))return Response.json({error:"请选择未抄送过的有效账号"},{status:409});
  const valid=await db.select({id:users.id}).from(users).where(and(inArray(users.id,ids),eq(users.status,"active")));
- if(valid.length!==ids.length)return Response.json({error:"部分账号已停用，请重新选择"},{status:400});
+ if(valid.length!==ids.length||ids.some(id=>!effectiveCommon(getLocalDatabase(),id,'report.receive')))return Response.json({error:"部分账号已停用，请重新选择"},{status:400});
  const now=new Date().toISOString();
  try{await db.batch([db.insert(workReportCc).values(ids.map(userId=>({reportId:id,userId,fromUserId:u.id,level:1,remark:String(body.remark??"").trim(),createdAt:now}))),db.insert(workReportActivityLogs).values({reportId:id,userId:u.id,action:"cc",detailsJson:JSON.stringify({targetUserIds:ids,remark:String(body.remark??"").trim()}),createdAt:now})]);}catch{return Response.json({error:"抄送对象已发生变化，请刷新后重试"},{status:409});}
  return Response.json({ok:true});

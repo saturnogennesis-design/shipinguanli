@@ -20,6 +20,6 @@ export async function GET(request:Request){
   memberships.forEach(row=>allowed.add(row.groupId));
  }
  if((scope==="upload"||scope==="review")&&!allowed.size&&auth.user.primaryGroupId)allowed.add(auth.user.primaryGroupId);
- const groups=(auth.user.roleCode==="super_admin"&&!auth.user.projectConfigured)?rows:rows.filter(row=>allowed.has(row.id));
+ const groups=rows.filter(row=>allowed.has(row.id));
  return Response.json({primaryGroupId:auth.user.primaryGroupId,scope,groups});
 }

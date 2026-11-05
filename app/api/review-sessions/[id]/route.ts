@@ -2,13 +2,13 @@ import { and, asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { contentReviewLocks, contentVersions, contents, products, reviewQueueItems, reviewSessions, reviews, users } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
-import { hasGroupScope,hasPermission, requireUser,type AuthUser } from "@/lib/server-auth";
+import { hasPermission, requireUser,type AuthUser } from "@/lib/server-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 async function ownedSession(sessionId: number, user: AuthUser) {
   const [session] = await getDb().select().from(reviewSessions).where(and(eq(reviewSessions.id, sessionId), eq(reviewSessions.reviewerUserId, user.id))).limit(1);
-  if(session&&user.projectConfigured){const queue=await getDb().select({groupId:contents.groupId}).from(reviewQueueItems).innerJoin(contents,eq(contents.id,reviewQueueItems.contentId)).where(eq(reviewQueueItems.sessionId,sessionId));if(queue.some(row=>!hasGroupScope(user,'review',row.groupId)))return undefined;}
+
   return session;
 }
 

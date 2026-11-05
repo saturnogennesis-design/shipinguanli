@@ -42,7 +42,7 @@ test('per-request project checks reject forged headers and cross-project object 
  assert.equal((await bindProjectRequest(db,req('/api/contents/A',200),user())).status,403);
  assert.equal((await bindProjectRequest(db,req('/api/product-masters',200,{id:100,name:'rename'}),user())).status,403);
  assert.equal((await bindProjectRequest(db,req('/api/product-masters?id=100',200),user())).status,403);
- const actor=user();assert.equal(await bindProjectRequest(db,req('/api/contents',project),actor),null);assert.deepEqual(actor.groupScopes.view,[100]);
+ const actor=user();assert.equal(await bindProjectRequest(db,req('/api/contents',project),actor),null);assert.deepEqual(actor.groupScopes.view,[]); // a legacy group assignment is no longer project-leader visibility
 });
 
 test('an existing source product can remain linked after it is disabled without blocking publishing',t=>{const {db,project}=fixture(t);db.exec("UPDATE product_masters SET status='inactive' WHERE id=100");write(db,project);assert.equal(db.prepare('SELECT published FROM publishing_records').get().published,1);assert.equal(db.prepare('SELECT product_master_id FROM publishing_records').get().product_master_id,100);});

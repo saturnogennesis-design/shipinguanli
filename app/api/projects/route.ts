@@ -1,3 +1,4 @@
+import {projectBadge} from '@/lib/project-badges';
 import {isProjectMaster,allowedProjectIds,maySeeProject} from '@/lib/project-visibility';
 import { getLocalDatabase } from '@/db';
 import { requireUser,hasPermission,projectPermission } from '@/lib/server-auth';
@@ -8,8 +9,7 @@ export async function GET(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;
  const db=getLocalDatabase(),ids=visibleProjectIds(db,auth.user),canManage=isProjectMaster(db,auth.user)||hasPermission(auth.user,'business.accounts');
  const all=db.prepare("SELECT id,name,code,status,project_type AS projectType FROM short_video_accounts ORDER BY id").all();
- const groups=db.prepare("SELECT id,name,account_id AS accountId FROM content_groups WHERE status='active'").all();
- return Response.json({currentUserId:auth.user.id,permissions:auth.user.permissions,roleCode:auth.user.roleCode,canManage,projects:all.filter(row=>ids.includes(Number(row.id))).map(row=>({...row,groups:groups.filter(g=>g.accountId===row.id),capabilities:{
+ return Response.json({currentUserId:auth.user.id,permissions:auth.user.permissions,roleCode:auth.user.roleCode,canManage,projects:all.filter(row=>ids.includes(Number(row.id))).map(row=>({...row,badge:projectBadge(db,auth.user!,Number(row.id),String(row.projectType)),groups:[],capabilities:{
  cross:projectPermission(auth.user,'cross.view',Number(row.id)),content:projectPermission(auth.user,'content.view',Number(row.id)),versions:projectPermission(auth.user,'version.view',Number(row.id)),review:projectPermission(auth.user,row.projectType==='cross_border'?'cross.review':'review.view',Number(row.id)),
  publishing:projectPermission(auth.user,'publishing.view',Number(row.id)),assets:projectPermission(auth.user,'asset.view',Number(row.id)),products:projectPermission(auth.user,'business.view',Number(row.id))||projectPermission(auth.user,'asset.upload',Number(row.id)),analytics:projectPermission(auth.user,'analytics.view',Number(row.id))
  }})),canManageVisibility:isProjectMaster(db,auth.user),manageableProjects:canManage?all.filter(row=>allowedProjectIds(db,auth.user!,false).includes(Number(row.id))):[]});

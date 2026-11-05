@@ -49,12 +49,12 @@ test('project operations include their page while read-only grants never enable 
  assert.equal(projectPermissionGranted(['content.view'],'content.delete'),false);
  assert.equal(projectPermissionGranted(['cross.create'],'content.view'),false);
 });
-test('project roles are live permission packages and a foreign-project role fails closed',t=>{
+test('project role templates never replace an employee permission snapshot after it is saved',t=>{
  const db=fixture(t);const role=Number(db.prepare("INSERT INTO project_permission_roles(project_id,name,permissions_json) VALUES(200,'制作','[\"cross.create\"]') RETURNING id").get().id);
- db.prepare("INSERT INTO project_user_permissions(project_id,user_id,permissions_json,updated_by,role_id,scope_version) VALUES(200,101,'[]',100,?,2)").run(role);
+ db.prepare("INSERT INTO project_user_permissions(project_id,user_id,permissions_json,updated_by,role_id,scope_version) VALUES(200,101,'[\"cross.create\"]',100,?,3)").run(role);
  assert.deepEqual(projectProfile(db,200,101).permissions,['cross.create']);
  db.prepare("UPDATE project_permission_roles SET permissions_json='[\"cross.view\"]' WHERE id=?").run(role);
- assert.deepEqual(projectProfile(db,200,101).permissions,['cross.view']);
+ assert.deepEqual(projectProfile(db,200,101).permissions,['cross.create']);
  db.prepare('UPDATE project_permission_roles SET project_id=201 WHERE id=?').run(role);
- assert.deepEqual(projectProfile(db,200,101).permissions,[]);
+ assert.deepEqual(projectProfile(db,200,101).permissions,['cross.create']);
 });

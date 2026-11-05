@@ -1,3 +1,6 @@
+import {isProjectMaster} from '@/lib/project-visibility';
+import {effectiveCommon} from '@/lib/common-permissions';
+import {getLocalDatabase} from '@/db';
 import {and,asc,eq,isNull,sql} from "drizzle-orm";
 import {getDb} from "@/db";
 import {noticeAttachments,noticeReceipts,noticeReplies,notices,users} from "@/db/schema";
@@ -11,7 +14,7 @@ export async function GET(request:Request,context:Context){
  const auth=await requireUser(request);if(!auth.user)return auth.response;
  try{
   const {row,receipt}=await getNotice(auth.user,Number((await context.params).id)),db=getDb();
-  const canTrack=row.authorUserId===auth.user.id||auth.user.roleCode==="super_admin";
+  const canTrack=row.authorUserId===auth.user.id||isProjectMaster(getLocalDatabase(),auth.user);
   const readers=canTrack?await db.select({userId:users.id,name:users.displayName,readAt:noticeReceipts.readAt,replied:sql<number>`EXISTS (SELECT 1 FROM notice_replies rp WHERE rp.notice_id=${noticeReceipts.noticeId} AND rp.user_id=${noticeReceipts.userId})`}).from(noticeReceipts).innerJoin(users,eq(users.id,noticeReceipts.userId)).where(eq(noticeReceipts.noticeId,row.id)).orderBy(asc(users.displayName)):[];
   const replies=await db.select({id:noticeReplies.id,userId:users.id,name:users.displayName,contentColor:users.contentColor,body:noticeReplies.body,createdAt:noticeReplies.createdAt}).from(noticeReplies).innerJoin(users,eq(users.id,noticeReplies.userId)).where(and(eq(noticeReplies.noticeId,row.id),canTrack?undefined:eq(noticeReplies.userId,auth.user.id))).orderBy(asc(noticeReplies.id));
   const attachments=await db.select({id:noticeAttachments.id,fileName:noticeAttachments.fileName,mimeType:noticeAttachments.mimeType,fileSize:noticeAttachments.fileSize,position:noticeAttachments.position}).from(noticeAttachments).where(and(eq(noticeAttachments.noticeId,row.id),eq(noticeAttachments.uploadStatus,"complete"))).orderBy(asc(noticeAttachments.position));
@@ -31,6 +34,7 @@ export async function POST(request:Request,context:Context){
    if(raw.publishStatus!=="uploading")throw new InputError("公告已发布或状态不允许发布",409);
    const files=await db.select().from(noticeAttachments).where(eq(noticeAttachments.noticeId,id));
    if(!files.length||files.some(file=>file.uploadStatus!=="complete"))throw new InputError("附件尚未全部上传完成",409);
+   const targets=await db.select({id:noticeReceipts.userId}).from(noticeReceipts).where(eq(noticeReceipts.noticeId,id));if(targets.some(p=>!effectiveCommon(getLocalDatabase(),p.id,'notice.receive')))throw new InputError('部分接收人已无通知接收权限，请重新选择',409);
    await db.update(notices).set({publishStatus:"published"}).where(eq(notices.id,id));
    const [receipts]=await db.select({count:sql<number>`count(*)`}).from(noticeReceipts).where(eq(noticeReceipts.noticeId,id));
    await writeAudit(request,{userId:auth.user.id,action:"notice.publish",objectType:"notice",objectId:String(id),details:{recipientCount:receipts.count,requiresReply:raw.requiresReply,attachmentCount:files.length}});

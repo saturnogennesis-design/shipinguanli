@@ -1,3 +1,5 @@
+import {markProjectRead} from '@/lib/project-badges';
+import {getLocalDatabase} from '@/db';
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
 import { contentVersionFiles, contentVersions, contents,reviews, users } from "@/db/schema";
@@ -22,7 +24,7 @@ export async function GET(request: Request, context: RouteContext) {
   const [content] = await getDb().select().from(contents).where(and(eq(contents.code, code), isNull(contents.deletedAt))).limit(1);
   if (!content) return Response.json({ error: "内容不存在" }, { status: 404 });
   const publisher=!auth.user.projectConfigured&&content.reviewStatus==="approved"&&hasPermission(auth.user,"publishing.view")&&(await publishingAccountIds(auth.user)).includes(content.accountId??0);
-  const scoped=publisher||content.uploaderUserId===auth.user.id||companyContentAccess(auth.user)||hasGroupScope(auth.user,"view",content.groupId)||(hasPermission(auth.user,"review.view")&&Boolean(content.groupId)&&hasGroupScope(auth.user,"review",content.groupId!)&&["pending","reviewing"].includes(content.reviewStatus));
+  const scoped=publisher||content.uploaderUserId===auth.user.id||companyContentAccess(auth.user)||hasGroupScope(auth.user,"view",content.groupId)||(hasPermission(auth.user,"review.view")&&(auth.user.projectConfigured||Boolean(content.groupId))&&hasGroupScope(auth.user,"review",content.groupId!)&&["pending","reviewing"].includes(content.reviewStatus));
   const recommendedId=Number(new URL(request.url).searchParams.get("recommendedVersionId"));
   const publicVersion=content.visibility==="public"?await getDb().select({id:reviews.id,versionId:reviews.versionId}).from(reviews).innerJoin(contentVersions,eq(reviews.versionId,contentVersions.id)).where(and(eq(reviews.contentId,content.id),eq(contentVersions.versionNumber,content.latestVersionNumber),eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).limit(1):[];
   const publicId=recommendedId||publicVersion[0]?.versionId;
@@ -36,6 +38,7 @@ export async function GET(request: Request, context: RouteContext) {
     .orderBy(desc(contentVersions.versionNumber));
   const versionIds=new Set(versions.map((version)=>version.id));const files=(await getDb().select({id:contentVersionFiles.id,versionId:contentVersionFiles.versionId,position:contentVersionFiles.position,fileName:contentVersionFiles.fileName,fileSize:contentVersionFiles.fileSize,mimeType:contentVersionFiles.mimeType,uploadStatus:contentVersionFiles.uploadStatus,draftEditToken:contentVersionFiles.draftEditToken}).from(contentVersionFiles).where(isNull(contentVersionFiles.draftEditToken)).orderBy(contentVersionFiles.position)).filter((file)=>versionIds.has(file.versionId));
   const recommendationRows=versionIds.size?await getDb().select({id:reviews.id,versionId:reviews.versionId,decision:reviews.decision,comment:reviews.comment,recommendedAt:reviews.createdAt,recommenderName:users.displayName}).from(reviews).innerJoin(users,eq(reviews.reviewerUserId,users.id)).where(and(eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).orderBy(desc(reviews.createdAt),desc(reviews.id)):[];const recommendationByVersion=new Map<number,(typeof recommendationRows)[number]>();for(const recommendation of recommendationRows)if(versionIds.has(recommendation.versionId)&&!recommendationByVersion.has(recommendation.versionId))recommendationByVersion.set(recommendation.versionId,recommendation);
+  markProjectRead(getLocalDatabase(),auth.user,'video',content.id);
   return Response.json({ canEditCover:content.uploaderUserId===auth.user.id&&(hasPermission(auth.user,"content.upload")||hasPermission(auth.user,"version.upload")), content: { code: content.code, title: content.title, latestVersionNumber: content.latestVersionNumber },historyRestricted:!canViewHistory, versions: versions.map((version)=>({ ...version, current: version.versionNumber === content.latestVersionNumber,recommendation:recommendationByVersion.get(version.id)??null, fileUrl: version.uploadStatus === "complete"&&version.mimeType!=="application/x-image-set" ? `/api/content-versions/${version.id}/file?projectId=${auth.user!.projectId}` : null,files:files.filter((file)=>file.versionId===version.id).map((file)=>({...file,fileUrl:file.uploadStatus==="complete"?`/api/content-version-files/${file.id}/file?projectId=${auth.user!.projectId}`:null})) })) });
 }
 

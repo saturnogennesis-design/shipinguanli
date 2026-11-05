@@ -1,15 +1,19 @@
+import {effectiveCommon} from './common-permissions';
+import {getLocalDatabase} from '@/db';
 import { and, eq, or, inArray, desc, aliasedTable } from "drizzle-orm";
 import { getDb } from "@/db";
-import { users, workReports, workReportCc, workReportHidden, workReportCcHidden, workReportRecipientReads, reportTemplates, reportTemplateAssignments, departments, productMasters } from "@/db/schema";
+import { users, workReports, workReportCc, workReportHidden, workReportCcHidden, workReportRecipientReads, reportTemplates, departments, productMasters } from "@/db/schema";
 import { hasPermission, type AuthUser } from "./server-auth";
 export const reportDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-export const reportAccess=(u:AuthUser)=>["report.create","report.receive","report.cc"].some(p=>hasPermission(u,p));
+export const reportAccess=(u:AuthUser)=>["report.view","report.create","report.receive","report.cc"].some(p=>hasPermission(u,p));
 export async function assigned(u:AuthUser){
- const db=getDb();const rows=await db.select({id:reportTemplates.id,name:reportTemplates.name,code:reportTemplates.code,fieldsJson:reportTemplates.fieldsJson}).from(reportTemplates).innerJoin(reportTemplateAssignments,eq(reportTemplateAssignments.templateId,reportTemplates.id)).where(and(eq(reportTemplateAssignments.userId,u.id),eq(reportTemplates.active,true),eq(reportTemplates.code,"RPT-DAILY")));
+ if(!hasPermission(u,"report.create"))return [];
+ const db=getDb();await db.insert(reportTemplates).values({name:'日报',code:'RPT-DAILY',createdByUserId:u.id,fieldsJson:'[{"key":"completed","type":"numbered"},{"key":"plan","type":"numbered"},{"key":"remark","type":"textarea"}]'}).onConflictDoNothing();const rows=await db.select({id:reportTemplates.id,name:reportTemplates.name,code:reportTemplates.code,fieldsJson:reportTemplates.fieldsJson}).from(reportTemplates).where(and(eq(reportTemplates.active,true),eq(reportTemplates.code,"RPT-DAILY")));
  return hasPermission(u,"report.create")?rows:[];
 }
 export async function people(u:AuthUser){
- return getDb().select({id:users.id,name:users.displayName,username:users.username,departmentId:users.departmentId,departmentName:departments.name}).from(users).leftJoin(departments,eq(users.departmentId,departments.id)).where(eq(users.status,"active"));
+ const persons=await getDb().select({id:users.id,name:users.displayName,username:users.username,departmentId:users.departmentId,departmentName:departments.name}).from(users).leftJoin(departments,eq(users.departmentId,departments.id)).where(eq(users.status,"active"));
+ return persons.filter(p=>effectiveCommon(getLocalDatabase(),p.id,"report.receive"));
 }
 export async function reportLists(u:AuthUser){
  const db:any=getDb(),recipient=aliasedTable(users,"recipient"),sender=aliasedTable(users,"sender");
@@ -28,7 +32,7 @@ export async function reportLists(u:AuthUser){
 export async function validRecipient(id:number,u:AuthUser){
  if(!id||id===u.id)return false;
  const [p]=await getDb().select({id:users.id}).from(users).where(and(eq(users.id,id),eq(users.status,"active")));
- return Boolean(p);
+ return Boolean(p)&&effectiveCommon(getLocalDatabase(),id,"report.receive");
 }
 export function plain(value:unknown){return String(value??"").replace(/<br\s*\/?\s*>/gi,"\n").replace(/<\/(?:div|p|li)>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">");}
 function numberedField(value:unknown){
