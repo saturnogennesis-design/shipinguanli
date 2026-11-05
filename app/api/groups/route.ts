@@ -1,5 +1,6 @@
 import {and,asc,eq} from "drizzle-orm";
-import {getDb} from "@/db";
+import {isProjectMaster} from '@/lib/project-visibility';
+import {getLocalDatabase,getDb} from "@/db";
 import {contentGroups,groupMemberships,departments,shortVideoAccounts,users} from "@/db/schema";
 import {groupScopeIds,hasPermission,requireUser} from "@/lib/server-auth";
 
@@ -21,5 +22,5 @@ export async function GET(request:Request){
  }
  if((scope==="upload"||scope==="review")&&!allowed.size&&auth.user.primaryGroupId)allowed.add(auth.user.primaryGroupId);
  const groups=rows.filter(row=>allowed.has(row.id));
- return Response.json({primaryGroupId:auth.user.primaryGroupId,scope,groups});
+ return Response.json({primaryGroupId:auth.user.primaryGroupId,scope,groups:isProjectMaster(getLocalDatabase(),auth.user)?groups:groups.map(({leaderUserId,leaderName,...row})=>{void leaderUserId;void leaderName;return row;})});
 }
