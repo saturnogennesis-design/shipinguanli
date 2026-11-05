@@ -4,11 +4,15 @@ from playwright.sync_api import sync_playwright,expect
 state=json.loads(Path(os.environ.get('ORBIT_QA_STATE_FILE','/tmp/orbit-layout-state.json')).read_text())
 base=os.environ['ORBIT_E2E_BASE_URL'];out=Path('/tmp/orbit-tabs-screenshots');out.mkdir(exist_ok=True);checks=0
 with sync_playwright() as p:
- browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
+ browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']+(['--no-proxy-server'] if os.environ.get('ORBIT_QA_INSECURE_HTTP')=='1' else []))
  context=browser.new_context(viewport={'width':1440,'height':960});n,v=state['adminCookie'].split('=',1)
  context.add_cookies([{'name':n,'value':v,'url':base}]);page=context.new_page();errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)));accept_dialog=lambda d:d.accept();page.on('dialog',accept_dialog)
- page.goto(base);page.locator(f"#project-tab-{state['a']}").click();nav=page.get_by_role('navigation',name='项目二级导航')
+ page.goto(base)
+ if os.environ.get('ORBIT_QA_INSECURE_HTTP')=='1':
+  assert page.evaluate("!window.isSecureContext && typeof crypto.randomUUID==='undefined' && typeof crypto.getRandomValues==='function'")
+  checks+=1
+ page.locator(f"#project-tab-{state['a']}").click();nav=page.get_by_role('navigation',name='项目二级导航')
  nav.get_by_role('button',name='线索库',exact=True).click();q=page.get_by_role('textbox',name='搜索名称')
  scopes=page.get_by_role('tablist',name='资料范围');expect(scopes.get_by_role('tab')).to_have_count(1);expect(scopes.get_by_role('tab').first).to_have_attribute('aria-selected','true');checks+=2
  q.fill('关联线索A');page.get_by_role('button',name='列表',exact=True).click();page.get_by_text('关联线索A',exact=True).click()
