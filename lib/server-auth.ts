@@ -1,3 +1,5 @@
+import {projectProfile,applyProjectProfile as bindProfile} from './project-profile';
+import {projectPermissionGranted,projectPermissionKeys} from './project-permission-catalog';
 import {isProjectMaster} from './project-visibility';
 import { and, eq, gt } from "drizzle-orm";
 import { getDb, getLocalDatabase } from "@/db";
@@ -12,6 +14,8 @@ const SESSION_DAYS = 7;
 
 export type AuthUser = {
   projectId?: number;
+  projectConfigured?: boolean;
+  projectGroupIds?: number[];
   id: number;
   username: string;
   displayName: string;
@@ -122,10 +126,11 @@ export async function requireUser(request: Request) {
 export function projectPermission(user:AuthUser,permission:string,projectId:number){
  const db=getLocalDatabase();
  if(isProjectMaster(db,user))return true;
- const profile=db.prepare('SELECT permissions_json FROM project_user_permissions WHERE project_id=? AND user_id=?').get(projectId,user.id);
- if(profile)return permissionGranted(JSON.parse(String(profile.permissions_json)),permission);
+ const profile=projectProfile(db,projectId,user.id);
+ if(profile)return Number(profile.scope_version)>=2?projectPermissionGranted(profile.permissions,permission):permissionGranted(projectPermissionKeys(profile.permissions),permission);
  // Existing projects retain their role baseline until an explicit project profile is saved.
  const legacy=permission==='cross.edit'?'cross.create':permission;
+ if(permission.endsWith('.view')){const prefix=permission.split('.')[0]+'.';if(user.permissions.some(key=>key.startsWith(prefix)&&!user.deniedPermissions.includes(key)))return true;}
  return user.roleCode==='super_admin'||(!user.deniedPermissions.includes(permission)&&(permissionGranted(user.permissions,permission)||!user.deniedPermissions.includes(legacy)&&permissionGranted(user.permissions,legacy)));
 }
 export function hasPermission(user: AuthUser, permission: string) {
@@ -138,9 +143,12 @@ export function groupScopeIds(user:AuthUser,scopeType:string){
 }
 
 export function hasGroupScope(user:AuthUser,scopeType:string,groupId:number|null|undefined){
-  if(user.roleCode==="super_admin")return true;
   if(!groupId)return false;
+  if(user.projectConfigured)return (scopeType==="view"?user.groupScopes.view??[]:user.projectGroupIds??[]).includes(groupId);
+  if(user.roleCode==="super_admin")return true;
   const assigned=groupScopeIds(user,scopeType);
   if(assigned.includes(groupId))return true;
   return (scopeType==="upload"||scopeType==="review")&&!assigned.length&&user.primaryGroupId===groupId;
 }
+
+export function applyProjectProfile(user:AuthUser){bindProfile(getLocalDatabase(),user);}

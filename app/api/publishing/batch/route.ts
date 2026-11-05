@@ -1,3 +1,4 @@
+import {contentScopeSql} from '@/lib/content-scope';
 import {getLocalDatabase} from '@/db';
 import {requireUser,hasPermission} from '@/lib/server-auth';
 import {publishingAccountIds} from '@/lib/v3-access';
@@ -8,6 +9,7 @@ export async function POST(request:Request){
  if(!hasPermission(auth.user,'publishing.status')||!(await publishingAccountIds(auth.user)).includes(auth.user.projectId!))return Response.json({error:'没有本项目的发布操作权限'},{status:403});
  const body=await request.json().catch(()=>null);
  if(!body||!Number.isSafeInteger(body.targetId)||body.targetId<=0||!Array.isArray(body.items)||body.items.length<1||body.items.length>200||body.items.some((item:unknown)=>!item||typeof item!=='object'||!('contentCode' in item)||typeof item.contentCode!=='string'||!item.contentCode||!('expectedRevision' in item)||!Number.isSafeInteger(item.expectedRevision)||Number(item.expectedRevision)<0)||new Set(body.items.map((item:{contentCode:string})=>item.contentCode)).size!==body.items.length)return Response.json({error:'请选择1至200条不同的内容，并刷新发布状态后重试'},{status:400});
+ if(auth.user.projectConfigured&&body.items.some((item:{contentCode:string})=>!getLocalDatabase().prepare(`SELECT 1 FROM contents c WHERE c.code=? AND c.account_id=? AND ${contentScopeSql(auth.user)}`).get(item.contentCode,auth.user.projectId!)))return Response.json({error:'选择中包含无权访问的发布内容'},{status:403});
  try{return Response.json({ok:true,results:writeTargetPublishingBatch(getLocalDatabase(),{projectId:auth.user.projectId!,targetId:body.targetId,userId:auth.user.id,items:body.items})});}
  catch(error){if(error instanceof PublishingConflict)return Response.json({error:error.message},{status:409});throw error;}
 }

@@ -17,16 +17,19 @@ function fileKind(fileName:string,mimeType=""){if(mimeType.startsWith("video/")|
 export async function GET(request: Request, context: RouteContext) {
   const auth = await requireUser(request);
   if (!auth.user) return auth.response;
+  if(!["content.view","version.view","review.view","publishing.view"].some(key=>hasPermission(auth.user,key)))return Response.json({error:"没有内容页面访问权限"},{status:403});
   const code = (await context.params).id;
   const [content] = await getDb().select().from(contents).where(and(eq(contents.code, code), isNull(contents.deletedAt))).limit(1);
   if (!content) return Response.json({ error: "内容不存在" }, { status: 404 });
-  const publisher=content.reviewStatus==="approved"&&hasPermission(auth.user,"publishing.view")&&(await publishingAccountIds(auth.user)).includes(content.accountId??0);
-  const scoped=publisher||content.uploaderUserId===auth.user.id||companyContentAccess(auth.user)||hasGroupScope(auth.user,"view",content.groupId)||(hasPermission(auth.user,"review.process")&&Boolean(content.groupId)&&hasGroupScope(auth.user,"review",content.groupId!)&&["pending","reviewing"].includes(content.reviewStatus));
+  const publisher=!auth.user.projectConfigured&&content.reviewStatus==="approved"&&hasPermission(auth.user,"publishing.view")&&(await publishingAccountIds(auth.user)).includes(content.accountId??0);
+  const scoped=publisher||content.uploaderUserId===auth.user.id||companyContentAccess(auth.user)||hasGroupScope(auth.user,"view",content.groupId)||(hasPermission(auth.user,"review.view")&&Boolean(content.groupId)&&hasGroupScope(auth.user,"review",content.groupId!)&&["pending","reviewing"].includes(content.reviewStatus));
   const recommendedId=Number(new URL(request.url).searchParams.get("recommendedVersionId"));
-  const [recommended]=recommendedId?await getDb().select({id:reviews.id}).from(reviews).where(and(eq(reviews.contentId,content.id),eq(reviews.versionId,recommendedId),eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).limit(1):[];
+  const publicVersion=content.visibility==="public"?await getDb().select({id:reviews.id,versionId:reviews.versionId}).from(reviews).innerJoin(contentVersions,eq(reviews.versionId,contentVersions.id)).where(and(eq(reviews.contentId,content.id),eq(contentVersions.versionNumber,content.latestVersionNumber),eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).limit(1):[];
+  const publicId=recommendedId||publicVersion[0]?.versionId;
+  const [recommended]=publicId?await getDb().select({id:reviews.id}).from(reviews).where(and(eq(reviews.contentId,content.id),eq(reviews.versionId,publicId!),eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).limit(1):[];
   if(!scoped&&!recommended)return Response.json({error:"当前账号无权查看此内容"},{status:403});
-  const canViewHistory=scoped&&(hasPermission(auth.user,"version.view")||hasPermission(auth.user,"review.process"));
-  const visibleVersionCondition=recommended?eq(contentVersions.id,recommendedId):canViewHistory?undefined:eq(contentVersions.versionNumber,content.latestVersionNumber);
+  const canViewHistory=scoped&&(hasPermission(auth.user,"version.view")||!auth.user.projectConfigured&&hasPermission(auth.user,"review.view"));
+  const visibleVersionCondition=recommended&&!scoped?eq(contentVersions.id,publicId!):canViewHistory?undefined:eq(contentVersions.versionNumber,content.latestVersionNumber);
   const versions = await getDb().select({ id: contentVersions.id, versionNumber: contentVersions.versionNumber, fileName: contentVersions.fileName, fileSize: contentVersions.fileSize, mimeType: contentVersions.mimeType, uploadStatus: contentVersions.uploadStatus,reviewStatus:contentVersions.reviewStatus,reviewSubmittedAt:contentVersions.reviewSubmittedAt,supersededAt:contentVersions.supersededAt,sourcePurgedAt:contentVersions.sourcePurgedAt, uploaderName: users.displayName, createdAt: contentVersions.createdAt }).from(contentVersions)
     .innerJoin(users, eq(contentVersions.uploadedByUserId, users.id))
     .where(and(eq(contentVersions.contentId, content.id),visibleVersionCondition, isNull(contentVersions.deletedAt)))

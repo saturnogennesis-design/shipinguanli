@@ -1,20 +1,21 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { contentGroups, contentReviewLocks, contentVersions, contents, platformContents, products, reviewQueueItems, reviewSessions, reviews, shortVideoAccounts, users } from "@/db/schema";
+import { contentReviewLocks, contentVersions, contents, products, reviewQueueItems, reviewSessions, reviews, users } from "@/db/schema";
 import { writeAudit } from "@/lib/audit";
-import { hasPermission, requireUser } from "@/lib/server-auth";
+import { hasGroupScope,hasPermission, requireUser,type AuthUser } from "@/lib/server-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-async function ownedSession(sessionId: number, userId: number) {
-  const [session] = await getDb().select().from(reviewSessions).where(and(eq(reviewSessions.id, sessionId), eq(reviewSessions.reviewerUserId, userId))).limit(1);
+async function ownedSession(sessionId: number, user: AuthUser) {
+  const [session] = await getDb().select().from(reviewSessions).where(and(eq(reviewSessions.id, sessionId), eq(reviewSessions.reviewerUserId, user.id))).limit(1);
+  if(session&&user.projectConfigured){const queue=await getDb().select({groupId:contents.groupId}).from(reviewQueueItems).innerJoin(contents,eq(contents.id,reviewQueueItems.contentId)).where(eq(reviewQueueItems.sessionId,sessionId));if(queue.some(row=>!hasGroupScope(user,'review',row.groupId)))return undefined;}
   return session;
 }
 
 export async function GET(request: Request, context: RouteContext) {
   const auth = await requireUser(request); if (!auth.user) return auth.response;
   if (!hasPermission(auth.user,"review.process")) return Response.json({error:"没有查看审核队列的权限"},{status:403});
-  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user.id);
+  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user);
   if (!session) return Response.json({ error: "审核队列不存在" }, { status: 404 });
   const items = await getDb().select({ queueItemId: reviewQueueItems.id, position: reviewQueueItems.position, draftDecision: reviewQueueItems.draftDecision, draftComment: reviewQueueItems.draftComment, draftRecommended:reviewQueueItems.draftRecommended, removedAt: reviewQueueItems.removedAt, contentId: contents.id, code: contents.code, title: contents.title, contentType: contents.contentType, uploaderUserId:contents.uploaderUserId,contentColor:users.contentColor,uploaderName: users.displayName, productName: products.name, versionNumber: contentVersions.versionNumber, versionId: contentVersions.id, fileName: contentVersions.fileName, fileSize: contentVersions.fileSize }).from(reviewQueueItems)
     .innerJoin(contents, eq(reviewQueueItems.contentId, contents.id)).innerJoin(users, eq(contents.uploaderUserId, users.id)).leftJoin(products, eq(contents.productId, products.id)).innerJoin(contentVersions, eq(reviewQueueItems.versionId, contentVersions.id))
@@ -25,7 +26,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const auth = await requireUser(request); if (!auth.user) return auth.response;
   if (!hasPermission(auth.user, "review.process")) return Response.json({ error: "没有执行内容审核的权限" }, { status: 403 });
-  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user.id);
+  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user);
   if (!session || session.status !== "active") return Response.json({ error: "审核队列已经结束" }, { status: 409 });
   const payload = await request.json() as { queueItemId?: number; decision?: "approved" | "rejected" | null; comment?: string; recommended?:boolean; removed?: boolean };
   const [item] = await getDb().select().from(reviewQueueItems).where(and(eq(reviewQueueItems.id, payload.queueItemId ?? 0), eq(reviewQueueItems.sessionId, sessionId))).limit(1);
@@ -46,7 +47,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   const auth = await requireUser(request); if (!auth.user) return auth.response;
   if (!hasPermission(auth.user, "review.process")) return Response.json({ error: "没有执行内容审核的权限" }, { status: 403 });
-  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user.id);
+  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user);
   if (!session || session.status !== "active") return Response.json({ error: "审核队列已经结束" }, { status: 409 });
   const items = await getDb().select().from(reviewQueueItems).where(eq(reviewQueueItems.sessionId, sessionId));
   const active = items.filter((item) => !item.removedAt);
@@ -75,7 +76,7 @@ export async function POST(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   const auth = await requireUser(request); if (!auth.user) return auth.response;
   if (!hasPermission(auth.user,"review.process")) return Response.json({error:"没有取消审核队列的权限"},{status:403});
-  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user.id);
+  const sessionId = Number((await context.params).id); const session = await ownedSession(sessionId, auth.user);
   if (!session || session.status !== "active") return Response.json({ error: "审核队列已经结束" }, { status: 409 });
   const items = await getDb().select({ contentId: reviewQueueItems.contentId }).from(reviewQueueItems).where(eq(reviewQueueItems.sessionId, sessionId)); const now = new Date().toISOString();
   for (const item of items) await getDb().update(contents).set({ reviewStatus: "pending", updatedAt: now }).where(eq(contents.id, item.contentId));

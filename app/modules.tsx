@@ -9,7 +9,7 @@ import { CommunicationCenter, CenterDialog } from "./communication-center";
 import { MaterialCenterV3 } from "./material-center-v3";
 import { WorkReportCenterV3 } from "./work-report-center-v3";
 import { employeeColor,employeePalette } from "@/lib/content-presentation";
-import { dutyPermissions, permissionGranted, permissionGroups, permissionKeys } from "@/lib/permissions";
+import {  permissionGranted, permissionGroups, permissionKeys } from "@/lib/permissions";
 import { useBusinessContext } from "./business-context";
 
 export type PlatformKey = string;
@@ -8802,7 +8802,7 @@ function Organization({ notify }: Pick<Props, "notify">) {
             className={tab === "roles" ? "selected" : ""}
             onClick={() => setTab("roles")}
           >
-            角色权限
+            系统角色
           </button>
           <button
             className={tab === "employees" ? "selected" : ""}
@@ -9096,7 +9096,7 @@ function Organization({ notify }: Pick<Props, "notify">) {
               {drawer === "role" && (
                 <>
                   <label>
-                    <span>角色名称 *</span>
+                    <span>系统角色名称 *</span>
                     <input
                       value={roleDraft.name}
                       onChange={(event) =>
@@ -9197,7 +9197,7 @@ function Organization({ notify }: Pick<Props, "notify">) {
                     </select>
                   </label>
                   <label>
-                    <span>所属角色</span>
+                    <span>系统角色</span>
                     <select
                       value={employeeDraft.roleId}
                       onChange={(event) =>
@@ -9455,11 +9455,6 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
   const visibleRoles = useMemo(() => applySmartFilters(data.roles, roleRules, roleFields), [data.roles, roleRules, roleFields]);
   const visibleUsers = useMemo(() => applySmartFilters(data.users, userRules, userFields), [data.users, userRules, userFields]);
   const visibleDepartments = useMemo(() => applySmartFilters(data.departments, departmentRules, departmentFields), [data.departments, departmentRules, departmentFields]);
-  const automaticDutyPermissions=useMemo(()=>new Set(dutyPermissions({
-    primaryGroupId:Number(userDraft.primaryGroupId)||null,
-    groupScopes:{view:userDraft.viewGroups,upload:userDraft.uploadGroups,review:userDraft.reviewGroups},
-    accountResponsibilities:{materialUpload:userDraft.materialUploadAccounts,materialReview:userDraft.materialReviewAccounts,publishing:userDraft.publishingAccounts},
-  })),[userDraft.primaryGroupId,userDraft.viewGroups,userDraft.uploadGroups,userDraft.reviewGroups,userDraft.materialUploadAccounts,userDraft.materialReviewAccounts,userDraft.publishingAccounts]);
   const load = async () => {
     const response = await fetch("/api/admin", { cache: "no-store" });
     if (!response.ok) return;
@@ -9504,7 +9499,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
             username: "",
             displayName: "",
             departmentId: String(data.departments[0]?.id ?? ""),
-            primaryGroupId:String(data.groups[0]?.id??""),viewGroups:[],uploadGroups:data.groups[0]?[data.groups[0].id]:[],reviewGroups:[],
+            primaryGroupId:"",viewGroups:[],uploadGroups:[],reviewGroups:[],
             materialUploadAccounts:[],materialReviewAccounts:[],publishingAccounts:[],
             permissionGrants:[],permissionDenies:[],
             roleId: String(data.roles[0]?.id ?? ""),
@@ -9536,11 +9531,11 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
         : drawer === "user"
           ? {
               entity: "user",
-              ...userDraft,
+              id:userDraft.id,username:userDraft.username,displayName:userDraft.displayName,
+              password:userDraft.password,status:userDraft.status,contentColor:userDraft.contentColor,
               roleId: Number(userDraft.roleId),
               departmentId: Number(userDraft.departmentId) || null,
-              primaryGroupId:Number(userDraft.primaryGroupId)||null,groupScopes:{view:userDraft.viewGroups,upload:userDraft.uploadGroups,review:userDraft.reviewGroups},accountResponsibilities:{materialUpload:userDraft.materialUploadAccounts,materialReview:userDraft.materialReviewAccounts,publishing:userDraft.publishingAccounts},
-              permissionGrants:userDraft.permissionGrants,permissionDenies:userDraft.permissionDenies.filter(key=>!automaticDutyPermissions.has(key)),
+
             }
           : drawer === "group" ? {entity:"group",...groupDraft,accountId:Number(groupDraft.accountId)||null,departmentId:Number(groupDraft.departmentId)||null,leaderUserId:Number(groupDraft.leaderUserId)||null}
           : {
@@ -9607,7 +9602,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
       ? data.canManageRoles ? "新建角色" : ""
       : tab === "employees"
         ? data.canManageUsers ? "创建员工账号" : ""
-        : data.canManageGroups ? "新建内容小组" : "";
+        : data.canManageGroups ? "新建项目小组" : "";
   return (
     <>
       
@@ -9630,7 +9625,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
             className={tab === "roles" ? "selected" : ""}
             onClick={() => setTab("roles")}
           >
-            角色权限
+            系统角色
           </button>
           <button
             className={tab === "employees" ? "selected" : ""}
@@ -9654,7 +9649,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                     <th>角色</th>
                     <th>成员</th>
                     <th>数据范围</th>
-                    {permissionGroups.map((group) => (
+                    {permissionGroups.filter(group=>["notice","report","admin","audit"].includes(group.key)).map((group) => (
                       <th key={group.key}>{group.label}</th>
                     ))}
                     <th>操作</th>
@@ -9730,7 +9725,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                     <th>登录账号</th>
                     <th>部门</th>
                     <th>角色</th>
-                    <th>主小组</th>
+                    <th>项目小组</th>
                     <th>状态</th>
                     <th>首次改密</th>
                     <th>最后登录</th>
@@ -9753,7 +9748,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                       <td>
                         <Badge tone="blue">{user.roleName}</Badge>
                       </td>
-                      <td>{data.groups.find(group=>group.id===user.primaryGroupId)?.name??"未分配"}</td>
+                      <td>按项目配置</td>
                       <td>
                         <Badge
                           tone={user.status === "active" ? "green" : "slate"}
@@ -9788,7 +9783,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
             </div>
           </>
         )}
-        {tab==="organization"&&<div className="organization-combined"><header><div><h3>内容小组</h3><span>{data.groups.filter(item=>item.status==="active").length} 个启用小组</span></div>{data.canManageDepartments?<button onClick={()=>openDepartment()}>＋ 新建部门</button>:null}</header><div className="department-list">{data.groups.map(group=><article className="department-row" key={group.id} style={{borderLeft:`8px solid ${group.themeColor??"#64748b"}`}}><span className="mini-avatar" style={{background:group.themeColor??"#64748b"}}>{group.name[0]}</span><div><strong>{group.name}</strong><small>{group.accountName??"账号待归类"} · {group.code} · {group.businessDirection||"未填写业务方向"} · {group.members} 名成员 · 负责人：{data.users.find(user=>user.id===group.leaderUserId)?.displayName??"未设置"}</small></div><Badge tone={group.status==="active"?"green":"slate"}>{group.status==="active"?"启用":"停用"}</Badge>{data.canManageGroups?<button onClick={()=>openGroup(group)}>配置</button>:null}</article>)}</div></div>}
+        {tab==="organization"&&<div className="organization-combined"><header><div><h3>项目小组</h3><span>{data.groups.filter(item=>item.status==="active").length} 个启用小组</span></div>{data.canManageDepartments?<button onClick={()=>openDepartment()}>＋ 新建部门</button>:null}</header><div className="department-list">{data.groups.map(group=><article className="department-row" key={group.id} style={{borderLeft:`8px solid ${group.themeColor??"#64748b"}`}}><span className="mini-avatar" style={{background:group.themeColor??"#64748b"}}>{group.name[0]}</span><div><strong>{group.name}</strong><small>{group.accountName??"项目待归类"} · {group.code} · {group.businessDirection||"未填写业务方向"} · {group.members} 名成员 · 负责人：{data.users.find(user=>user.id===group.leaderUserId)?.displayName??"未设置"}</small></div><Badge tone={group.status==="active"?"green":"slate"}>{group.status==="active"?"启用":"停用"}</Badge>{data.canManageGroups?<button onClick={()=>openGroup(group)}>配置</button>:null}</article>)}</div></div>}
         {tab === "organization" && (
           <>
             <RuleFilterBar moduleKey="departments" fields={departmentFields} rules={departmentRules} onChange={setDepartmentRules} />
@@ -9837,8 +9832,8 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                         : "创建员工账号"
                       : drawer === "group"
                         ? groupDraft.id
-                          ? "编辑内容小组"
-                          : "新建内容小组"
+                          ? "编辑项目小组"
+                          : "新建项目小组"
                       : departmentDraft.id
                         ? "编辑部门"
                         : "新建部门"}
@@ -9850,7 +9845,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
               {drawer === "role" && (
                 <>
                   <label>
-                    <span>角色名称 *</span>
+                    <span>系统角色名称 *</span>
                     <input
                       value={roleDraft.name}
                       onChange={(event) =>
@@ -10032,7 +10027,7 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                     </select>
                   </label>
                   <label>
-                    <span>角色 *</span>
+                    <span>系统角色 *</span>
                     <select
                       value={userDraft.roleId}
                       onChange={(event) =>
@@ -10055,12 +10050,11 @@ function OrganizationLive({ notify }: Pick<Props, "notify">) {
                   </label>}
                   <label><span>员工识别颜色</span><select value={userDraft.contentColor} onChange={event=>setUserDraft({...userDraft,contentColor:event.target.value})}><option value="">自动分配</option>{employeePalette.map((color,index)=><option value={color} key={color}>中性色 {index+1}</option>)}</select><i className="employee-color-preview" style={{background:employeeColor(userDraft.id||userDraft.username,userDraft.contentColor)}}/></label>
                   {data.roles.find(item=>String(item.id)===String(userDraft.roleId))?.code==="super_admin"?<div className="employee-duty-fixed"><strong>全系统范围</strong><p>超级管理员固定拥有全部业务范围，不需要逐项设置。</p></div>:<>
-                    <label className="primary-duty-select"><span>本人在哪个小组制作内容</span><select value={userDraft.primaryGroupId} onChange={event=>{const id=Number(event.target.value)||0;setUserDraft({...userDraft,primaryGroupId:event.target.value,uploadGroups:id?[...new Set([...userDraft.uploadGroups,id])]:userDraft.uploadGroups});}}><option value="">不制作内容</option>{data.groups.filter(item=>item.status==="active").map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select><small>选择后，该员工只能上传和管理自己的内容，不会自动看到其他队员内容。</small></label>
-                    {data.canManageGroupMembers&&<div className="employee-duty-builder"><div className="employee-duty-heading"><strong>这个人还负责什么</strong><small>只选择实际承担的工作</small></div><section><h4>内容工作</h4>{data.groups.filter(item=>item.status==="active").map(group=><article className="employee-duty-target" key={group.id}><strong>{group.name}</strong><label><input type="checkbox" checked={userDraft.reviewGroups.includes(group.id)} onChange={event=>setUserDraft({...userDraft,reviewGroups:event.target.checked?[...userDraft.reviewGroups,group.id]:userDraft.reviewGroups.filter(id=>id!==group.id)})}/><span>审核这个小组提交的内容</span></label><label><input type="checkbox" checked={userDraft.viewGroups.includes(group.id)} onChange={event=>setUserDraft({...userDraft,viewGroups:event.target.checked?[...userDraft.viewGroups,group.id]:userDraft.viewGroups.filter(id=>id!==group.id)})}/><span>管理这个小组的进度，可查看全组内容</span></label></article>)}</section><section><h4>账号工作</h4>{data.accounts.filter(item=>item.status==="active").map(account=><article className="employee-duty-target" key={account.id}><strong>{account.platformName} · {account.name}</strong><label><input type="checkbox" checked={userDraft.materialUploadAccounts.includes(account.id)} onChange={event=>setUserDraft({...userDraft,materialUploadAccounts:event.target.checked?[...userDraft.materialUploadAccounts,account.id]:userDraft.materialUploadAccounts.filter(id=>id!==account.id)})}/><span>拍摄并上传素材</span></label><label><input type="checkbox" checked={userDraft.materialReviewAccounts.includes(account.id)} onChange={event=>setUserDraft({...userDraft,materialReviewAccounts:event.target.checked?[...userDraft.materialReviewAccounts,account.id]:userDraft.materialReviewAccounts.filter(id=>id!==account.id)})}/><span>审核这个账号的素材</span></label><label><input type="checkbox" checked={userDraft.publishingAccounts.includes(account.id)} onChange={event=>setUserDraft({...userDraft,publishingAccounts:event.target.checked?[...userDraft.publishingAccounts,account.id]:userDraft.publishingAccounts.filter(id=>id!==account.id)})}/><span>负责这个账号的发布运营</span></label></article>)}</section><details><summary>高级设置：向其他小组上传内容</summary><p>一般员工不需要设置；仅在确实跨组制作时使用。</p>{data.groups.filter(item=>item.status==="active"&&String(item.id)!==String(userDraft.primaryGroupId)).map(group=><label className="employee-duty-advanced" key={group.id}><input type="checkbox" checked={userDraft.uploadGroups.includes(group.id)} onChange={event=>setUserDraft({...userDraft,uploadGroups:event.target.checked?[...userDraft.uploadGroups,group.id]:userDraft.uploadGroups.filter(id=>id!==group.id)})}/><span>可以向 {group.name} 上传本人内容</span></label>)}</details><details className="employee-permission-overrides"><summary>高级设置：这个员工的权限例外</summary><p>默认跟随角色和上面的职责。只有确实需要区别于同角色其他员工时才调整；以后修改角色不会覆盖这里。</p>{permissionGroups.map(group=><section key={group.key}><h4>{group.label}</h4>{group.permissions.map(permission=>{const automatic=automaticDutyPermissions.has(permission.key);const value=automatic?"automatic":userDraft.permissionDenies.includes(permission.key)?"deny":userDraft.permissionGrants.includes(permission.key)?"allow":"inherit";return <label key={permission.key}><span><strong>{permission.label}</strong><small>{automatic?"由当前职责自动开启":permission.description}</small></span><select disabled={automatic} value={value} onChange={event=>{const next=event.target.value;setUserDraft({...userDraft,permissionGrants:next==="allow"?[...new Set([...userDraft.permissionGrants,permission.key])]:userDraft.permissionGrants.filter(key=>key!==permission.key),permissionDenies:next==="deny"?[...new Set([...userDraft.permissionDenies,permission.key])]:userDraft.permissionDenies.filter(key=>key!==permission.key)});}}><option value={automatic?"automatic":"inherit"}>{automatic?"职责自动开启":"跟随角色/职责"}</option>{!automatic?<><option value="allow">额外允许</option><option value="deny">单独禁止</option></>:null}</select></label>;})}</section>)}</details><div className="employee-duty-summary"><strong>保存后的工作范围</strong><ul>{userDraft.primaryGroupId?<li>在 {data.groups.find(item=>String(item.id)===String(userDraft.primaryGroupId))?.name??"所选小组"} 制作本人内容</li>:null}{userDraft.reviewGroups.map(id=><li key={`review-${id}`}>审核 {data.groups.find(item=>item.id===id)?.name??"所选小组"} 的内容</li>)}{userDraft.viewGroups.map(id=><li key={`view-${id}`}>查看并管理 {data.groups.find(item=>item.id===id)?.name??"所选小组"} 的全组进度</li>)}{userDraft.materialUploadAccounts.map(id=><li key={`material-upload-${id}`}>向 {data.accounts.find(item=>item.id===id)?.name??"所选账号"} 上传素材</li>)}{userDraft.materialReviewAccounts.map(id=><li key={`material-review-${id}`}>审核 {data.accounts.find(item=>item.id===id)?.name??"所选账号"} 的素材</li>)}{userDraft.publishingAccounts.map(id=><li key={`publishing-${id}`}>负责 {data.accounts.find(item=>item.id===id)?.name??"所选账号"} 的发布</li>)}{userDraft.permissionGrants.length?<li>另行允许 {userDraft.permissionGrants.length} 项个人权限</li>:null}{userDraft.permissionDenies.length?<li>单独禁止 {userDraft.permissionDenies.length} 项个人权限</li>:null}{!userDraft.primaryGroupId&&!userDraft.reviewGroups.length&&!userDraft.viewGroups.length&&!userDraft.materialUploadAccounts.length&&!userDraft.materialReviewAccounts.length&&!userDraft.publishingAccounts.length?<li>暂未分配业务工作</li>:null}</ul></div></div>}
+                    <p className="project-permission-notice">项目工作、小组和角色请在“项目权限”中按项目配置。这里仅维护员工基本信息及系统角色。</p>
                   </>}
                 </>
               )}
-              {drawer==="group"&&<><label><span>小组名称 *</span><input value={groupDraft.name} onChange={event=>setGroupDraft({...groupDraft,name:event.target.value})}/></label><label><span>小组编号</span><input disabled={Boolean(groupDraft.id)} placeholder="留空自动生成" value={groupDraft.code} onChange={event=>setGroupDraft({...groupDraft,code:event.target.value})}/></label><label><span>所属项目 *</span><select required value={groupDraft.accountId} onChange={event=>setGroupDraft({...groupDraft,accountId:event.target.value})}><option value="">请选择账号</option>{data.accounts.filter(item=>item.status==="active"||String(item.id)===groupDraft.accountId).map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>所属部门</span><select value={groupDraft.departmentId} onChange={event=>setGroupDraft({...groupDraft,departmentId:event.target.value})}><option value="">未绑定</option>{data.departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>小组负责人（不自动获得审核权）</span><select value={groupDraft.leaderUserId} onChange={event=>setGroupDraft({...groupDraft,leaderUserId:event.target.value})}><option value="">未设置</option>{data.users.filter(item=>item.status==="active").map(item=><option value={item.id} key={item.id}>{item.displayName}</option>)}</select></label><label><span>识别颜色</span><input type="color" value={groupDraft.themeColor} onChange={event=>setGroupDraft({...groupDraft,themeColor:event.target.value})}/></label><label><span>业务方向</span><input value={groupDraft.businessDirection} onChange={event=>setGroupDraft({...groupDraft,businessDirection:event.target.value})}/></label><label><span>小组说明</span><textarea value={groupDraft.description} onChange={event=>setGroupDraft({...groupDraft,description:event.target.value})}/></label>{groupDraft.id&&<label><span>状态</span><select value={groupDraft.status} onChange={event=>setGroupDraft({...groupDraft,status:event.target.value})}><option value="active">启用</option><option value="inactive">停用</option></select></label>}</>}
+              {drawer==="group"&&<><label><span>小组名称 *</span><input value={groupDraft.name} onChange={event=>setGroupDraft({...groupDraft,name:event.target.value})}/></label><label><span>小组编号</span><input disabled={Boolean(groupDraft.id)} placeholder="留空自动生成" value={groupDraft.code} onChange={event=>setGroupDraft({...groupDraft,code:event.target.value})}/></label><label><span>所属项目 *</span><select required value={groupDraft.accountId} onChange={event=>setGroupDraft({...groupDraft,accountId:event.target.value})}><option value="">请选择项目</option>{data.accounts.filter(item=>item.status==="active"||String(item.id)===groupDraft.accountId).map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>所属部门</span><select value={groupDraft.departmentId} onChange={event=>setGroupDraft({...groupDraft,departmentId:event.target.value})}><option value="">未绑定</option>{data.departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label><span>小组负责人（不自动获得审核权）</span><select value={groupDraft.leaderUserId} onChange={event=>setGroupDraft({...groupDraft,leaderUserId:event.target.value})}><option value="">未设置</option>{data.users.filter(item=>item.status==="active").map(item=><option value={item.id} key={item.id}>{item.displayName}</option>)}</select></label><label><span>识别颜色</span><input type="color" value={groupDraft.themeColor} onChange={event=>setGroupDraft({...groupDraft,themeColor:event.target.value})}/></label><label><span>业务方向</span><input value={groupDraft.businessDirection} onChange={event=>setGroupDraft({...groupDraft,businessDirection:event.target.value})}/></label><label><span>小组说明</span><textarea value={groupDraft.description} onChange={event=>setGroupDraft({...groupDraft,description:event.target.value})}/></label>{groupDraft.id&&<label><span>状态</span><select value={groupDraft.status} onChange={event=>setGroupDraft({...groupDraft,status:event.target.value})}><option value="active">启用</option><option value="inactive">停用</option></select></label>}</>}
               {drawer === "department" && (
                 <>
                   <label>

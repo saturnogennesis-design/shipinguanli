@@ -36,3 +36,25 @@ test('detail-created draft origins stay locked on save while independently creat
 test('review views show only their active workflow state and keep archived or deleted records in secondary views',async()=>{const {crossViewRows}=await import('../lib/cross-summary.ts');const rows=[{status:'draft',lifecycle:'active'},{status:'pending',lifecycle:'active'},{status:'approved',lifecycle:'active'},{status:'rejected',lifecycle:'active'},{status:'draft',lifecycle:'archived'},{status:'pending',lifecycle:'deleted'}];for(const status of ['draft','pending','approved','rejected'])assert.equal(crossViewRows(rows,status).length,1);assert.equal(crossViewRows(rows,'active').length,4);assert.equal(crossViewRows(rows,'archived').length,1);assert.equal(crossViewRows(rows,'deleted').length,1);});
 
 test('lifecycle guards reject pending or unfinished archives, block live descendants, and restore ancestors before children',t=>{const db=fixture(t);const life=(id,action)=>crossLifecycle(db,{id,project:200,actor:101,revision:crossRow(db,id,200).revision,action,canArchive:true,canDelete:true});assert.throws(()=>life(4,'archive'),/草稿/);change(db,4,'submit');assert.throws(()=>life(4,'delete'),/撤回/);change(db,4,'withdraw');life(4,'delete');life(4,'restore');change(db,1,'submit');change(db,2,'save',{parentId:1});pass(db,2);pass(db,3);assert.throws(()=>life(1,'delete'),/下级/);assert.throws(()=>life(2,'archive'),/下级/);life(3,'delete');life(2,'archive');life(1,'archive');assert.throws(()=>life(3,'restore'),/上级/);life(2,'delete');assert.equal(life(2,'restore').lifecycle,'archived');assert.throws(()=>life(2,'unarchive'),/上级/);life(1,'unarchive');life(2,'unarchive');assert.equal(life(3,'restore').lifecycle,'active');assert.equal(crossRow(db,3,200).parent_id,2);});
+
+const {projectPermissionGranted}=await import('../lib/project-permission-catalog.ts');
+const {projectProfile}=await import('../lib/project-profile.ts');
+test('project operations include their page while read-only grants never enable mutations or downloads',()=>{
+ assert.equal(projectPermissionGranted(['cross.review'],'cross.view'),true);
+ assert.equal(projectPermissionGranted(['cross.review'],'cross.create'),false);
+ assert.equal(projectPermissionGranted(['content.upload'],'content.view'),true);
+ assert.equal(projectPermissionGranted(['review.process'],'review.view'),true);
+ assert.equal(projectPermissionGranted(['asset.view'],'asset.claim'),false);
+ assert.equal(projectPermissionGranted(['publishing.view'],'publishing.download'),false);
+ assert.equal(projectPermissionGranted(['content.view'],'content.delete'),false);
+ assert.equal(projectPermissionGranted(['cross.create'],'content.view'),false);
+});
+test('project roles are live permission packages and a foreign-project role fails closed',t=>{
+ const db=fixture(t);const role=Number(db.prepare("INSERT INTO project_permission_roles(project_id,name,permissions_json) VALUES(200,'制作','[\"cross.create\"]') RETURNING id").get().id);
+ db.prepare("INSERT INTO project_user_permissions(project_id,user_id,permissions_json,updated_by,role_id,scope_version) VALUES(200,101,'[]',100,?,2)").run(role);
+ assert.deepEqual(projectProfile(db,200,101).permissions,['cross.create']);
+ db.prepare("UPDATE project_permission_roles SET permissions_json='[\"cross.view\"]' WHERE id=?").run(role);
+ assert.deepEqual(projectProfile(db,200,101).permissions,['cross.view']);
+ db.prepare('UPDATE project_permission_roles SET project_id=201 WHERE id=?').run(role);
+ assert.deepEqual(projectProfile(db,200,101).permissions,[]);
+});

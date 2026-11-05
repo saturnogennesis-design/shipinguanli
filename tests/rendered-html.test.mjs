@@ -323,7 +323,7 @@ test("V1.8 has independent workflow lanes, archive and lazy version covers",asyn
 test("V1.8 permanent deletion is super-admin only and protects references",async()=>{
   const trash=await readFile(new URL("../app/api/contents/trash/route.ts",import.meta.url),"utf8");
   const versions=await readFile(new URL("../app/api/versions/route.ts",import.meta.url),"utf8");
-  assert.match(trash,/auth.user.roleCode!=="super_admin"/);assert.match(trash,/otherVersion\|\|otherFile/);
+  assert.match(trash,/hasPermission\(auth.user,"content.trash_purge"\)/);assert.match(trash,/otherVersion\|\|otherFile/);
   assert.match(trash,/publicationEvents/);assert.match(trash,/db.batch/);
   assert.match(versions,/推荐或发布使用中的版本不能清理源文件/);
 });
@@ -340,13 +340,13 @@ test("material upload can create and automatically select a new product",async()
   assert.match(image,/row\?\.createdByUserId===auth\.user\.id/);
 });
 
-test("recommendations stay out of peer content pools and version management",async()=>{
+test("project content visibility also protects version management",async()=>{
   const access=await readFile(new URL("../lib/content-access.ts",import.meta.url),"utf8");
   const versions=await readFile(new URL("../app/api/versions/route.ts",import.meta.url),"utf8");
   const detailVersions=await readFile(new URL("../app/api/contents/[id]/versions/route.ts",import.meta.url),"utf8");
   assert.doesNotMatch(access,/groupRecommendation/);
-  assert.match(versions,/eq\(contents\.uploaderUserId,auth\.user\.id\)/);
-  assert.doesNotMatch(versions,/contentVisibility\(auth\.user\)/);
+  assert.match(versions,/contentVisibility\(auth\.user\)/);
+  assert.match(access,/pr\.recommended=1/);
   assert.match(detailVersions,/recommendedVersionId/);
   assert.doesNotMatch(detailVersions,/recommendedVersionIds/);
 });

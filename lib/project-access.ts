@@ -1,5 +1,6 @@
+import {applyProjectProfile} from './project-profile';
 import type { DatabaseSync } from "node:sqlite";
-import type { AuthUser } from "./server-auth";
+import type {AuthUser} from "./server-auth";
 import {allowedProjectIds} from './project-visibility';
 export function visibleProjectIds(db:DatabaseSync,user:AuthUser):number[]{return allowedProjectIds(db,user);}
 const roots=new Set(['cross-records','contents','content-versions','content-version-files','material-sets','material-files','materials','product-masters','reviews','review-sessions','versions','publishing','analytics','dashboard','groups','business-data','content-categories','filters']);
@@ -11,6 +12,7 @@ export async function bindProjectRequest(db:DatabaseSync,request:Request,user:Au
  if(!Number.isSafeInteger(id)||id<=0)return Response.json({error:'请先进入一个项目'},{status:409});
  if(!visibleProjectIds(db,user).includes(id))return Response.json({error:'没有访问该项目的权限'},{status:403});
  user.projectId=id;
+ applyProjectProfile(db,user);
  const cross=db.prepare('SELECT project_type FROM short_video_accounts WHERE id=?').get(id)?.project_type==='cross_border';
  const rootName=url.pathname.split('/')[2];
  if(cross&&!['cross-records','content-categories','groups','filters'].includes(rootName))return Response.json({error:'当前项目请使用线索、母版和产品包功能'},{status:409});

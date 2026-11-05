@@ -13,6 +13,7 @@ export type AccountResponsibility = "material" | "material_upload" | "material_r
 export type GroupResponsibility = "member" | "leader" | "content_review";
 
 export async function responsibleAccountIds(user: AuthUser, types: AccountResponsibility[]) {
+  if (user.projectConfigured&&user.projectId)return [user.projectId];
   if (user.roleCode === "super_admin") {
     const rows = await getDb().select({ id: shortVideoAccounts.id }).from(shortVideoAccounts).where(and(eq(shortVideoAccounts.status, "active"),user.projectId?eq(shortVideoAccounts.id,user.projectId):undefined));
     return rows.map((row) => row.id);
@@ -24,6 +25,7 @@ export async function responsibleAccountIds(user: AuthUser, types: AccountRespon
 }
 
 export async function memberAccountIds(user: AuthUser) {
+  if(user.projectConfigured&&user.projectId)return [user.projectId];
   if (user.roleCode === "super_admin") return responsibleAccountIds(user, ["material"]);
   const rows = await getDb().select({ accountId: contentGroups.accountId })
     .from(groupMemberships)
@@ -47,6 +49,7 @@ export async function publishingAccountIds(user: AuthUser) {
 }
 
 export async function responsibleGroupIds(user: AuthUser, types: GroupResponsibility[]) {
+  if(user.projectConfigured)return types.includes("leader")&&!types.includes("member")?user.groupScopes.view??[]:user.projectGroupIds??[];
   if (user.roleCode === "super_admin") {
     const rows = await getDb().select({ id: contentGroups.id }).from(contentGroups).where(and(eq(contentGroups.status, "active"),user.projectId?eq(contentGroups.accountId,user.projectId):undefined));
     return rows.map((row) => row.id);

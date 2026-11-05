@@ -1,3 +1,4 @@
+import {contentScopeSql} from '@/lib/content-scope';
 import {getLocalDatabase} from '@/db';
 import {requireUser,hasPermission} from '@/lib/server-auth';
 import {publishingAccountIds} from '@/lib/v3-access';
@@ -12,6 +13,8 @@ async function save(request:Request,context:Context,statusOnly:boolean){
  const body=await request.json().catch(()=>null);
  if(!body||!Number.isSafeInteger(body.targetId)||body.targetId<=0||!Number.isSafeInteger(body.expectedRevision)||body.expectedRevision<0||(statusOnly&&typeof body.published!=='boolean'))return Response.json({error:'发布参数无效，请刷新后重试'},{status:400});
  if(!statusOnly&&((body.productMasterId!=null&&(!Number.isSafeInteger(body.productMasterId)||body.productMasterId<=0))||typeof body.title!=='string'||typeof body.body!=='string'||!Array.isArray(body.topics)||body.topics.some((item:unknown)=>typeof item!=='string')))return Response.json({error:'发布资料参数无效'},{status:400});
+ const code=(await context.params).code;
+ if(auth.user.projectConfigured&&!getLocalDatabase().prepare(`SELECT 1 FROM contents c WHERE c.code=? AND c.account_id=? AND ${contentScopeSql(auth.user)}`).get(code,auth.user.projectId!))return Response.json({error:'无权访问所选发布内容'},{status:403});
  try{return Response.json(writeTargetPublishing(getLocalDatabase(),{projectId:auth.user.projectId!,contentCode:(await context.params).code,targetId:body.targetId,userId:auth.user.id,expectedRevision:body.expectedRevision,...(statusOnly?{published:body.published}:{details:{productMasterId:body.productMasterId??null,title:body.title.slice(0,500),body:body.body.slice(0,20000),topics:body.topics.slice(0,50)}})}));}
  catch(error){if(error instanceof PublishingConflict)return Response.json({error:error.message},{status:409});throw error;}
 }

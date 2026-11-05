@@ -11,7 +11,7 @@ function cleanName(value:unknown){return String(value??"").trim().slice(0,120);}
 
 export async function GET(request:Request){
  const auth=await requireUser(request);if(!auth.user)return auth.response;
- const canUseCatalog=hasPermission(auth.user,"asset.view")||hasPermission(auth.user,"asset.upload")||hasPermission(auth.user,"content.view")||hasPermission(auth.user,"content.upload")||hasPermission(auth.user,"report.create")||hasPermission(auth.user,"business.product_masters");
+ const canUseCatalog=hasPermission(auth.user,"business.view")||hasPermission(auth.user,"asset.view")||hasPermission(auth.user,"asset.upload")||hasPermission(auth.user,"content.view")||hasPermission(auth.user,"content.upload")||hasPermission(auth.user,"report.create")||hasPermission(auth.user,"business.product_masters");
  if(!canUseCatalog)return error("没有查看素材产品库的权限",403);
  await syncProductMasterCatalog();
  const includeInactive=new URL(request.url).searchParams.get("all")==="1"&&hasPermission(auth.user,"business.product_masters");

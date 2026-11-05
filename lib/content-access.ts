@@ -5,21 +5,22 @@ import {getDb} from "@/db";
 import {groupScopeIds,hasGroupScope,hasPermission,type AuthUser} from "./server-auth";
 
 export function companyContentAccess(user:AuthUser){
- return user.roleCode==="super_admin";
+ return user.roleCode==="super_admin"&&!user.projectConfigured;
 }
 // Public alone does not make ordinary employee work visible to peers.
 export function contentVisibility(user:AuthUser){
  const viewGroups=groupScopeIds(user,"view");
  const managed=viewGroups.length?inArray(contents.groupId,viewGroups):sql`0=1`;
- return and(user.projectId?eq(contents.accountId,user.projectId):undefined,isNull(contents.deletedAt),companyContentAccess(user)?sql`1=1`:or(eq(contents.uploaderUserId,user.id),managed))!;
+ return and(user.projectId?eq(contents.accountId,user.projectId):undefined,isNull(contents.deletedAt),companyContentAccess(user)?sql`1=1`:or(eq(contents.uploaderUserId,user.id),managed,sql`(${contents.visibility}='public' AND EXISTS(SELECT 1 FROM reviews pr WHERE pr.content_id=${contents.id} AND pr.version_id IN (SELECT pv.id FROM content_versions pv WHERE pv.content_id=${contents.id} AND pv.version_number=${contents.latestVersionNumber}) AND pr.recommended=1 AND pr.recommendation_removed_at IS NULL))`))!;
 }
 export async function canReadContentVersion(user:AuthUser,versionId:number){
  const [row]=await getDb().select({accountId:contents.accountId,owner:contents.uploaderUserId,groupId:contents.groupId,status:contents.reviewStatus,visibility:contents.visibility,current:contents.latestVersionNumber,version:contentVersions.versionNumber}).from(contentVersions).innerJoin(contents,eq(contents.id,contentVersions.contentId)).where(and(eq(contentVersions.id,versionId),isNull(contents.deletedAt),isNull(contentVersions.deletedAt))).limit(1);
  if(!row||(user.projectId&&row.accountId!==user.projectId))return false;
- const publisher=row.status==="approved"&&hasPermission(user,"publishing.view")&&(await publishingAccountIds(user)).includes(row.accountId??0);
- const reviewer=hasPermission(user,"review.process");
+ if(!["content.view","version.view","review.view","publishing.view"].some(key=>hasPermission(user,key)))return false;
+ const publisher=!user.projectConfigured&&row.status==="approved"&&hasPermission(user,"publishing.view")&&(await publishingAccountIds(user)).includes(row.accountId??0);
+ const reviewer=hasPermission(user,"review.view");
  const scoped=publisher||companyContentAccess(user)||row.owner===user.id||hasGroupScope(user,"view",row.groupId)||(reviewer&&hasGroupScope(user,"review",row.groupId)&&["pending","reviewing"].includes(row.status));
- if(scoped&&(row.current===row.version||hasPermission(user,"version.view")||reviewer))return true;
+ if(scoped&&(row.current===row.version||hasPermission(user,"version.view")||!user.projectConfigured&&reviewer))return true;
  if(row.visibility!=="public"||!row.groupId||(user.projectId?row.accountId!==user.projectId:user.primaryGroupId!==row.groupId))return false;
  const [recommendation]=await getDb().select({id:reviews.id}).from(reviews).where(and(eq(reviews.versionId,versionId),eq(reviews.recommended,true),isNull(reviews.recommendationRemovedAt))).limit(1);
  return Boolean(recommendation);
