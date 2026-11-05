@@ -1,6 +1,6 @@
-# V3.24.0 Windows安装／更新包
+# V3.24.1 Windows安装／更新包
 
-[下载安装包](OrbitVideoSetup-v3.24.0.zip?raw=1) · [SHA-256校验](OrbitVideoSetup-v3.24.0.zip.sha256)
+[下载安装包](OrbitVideoSetup-v3.24.1.zip?raw=1) · [SHA-256校验](OrbitVideoSetup-v3.24.1.zip.sha256)
 
 完整解压后，已有系统运行Update.cmd，首次安装运行Install.cmd。需要Node.js >=22.13.0及安装阶段网络，不是离线EXE。
 
@@ -8,8 +8,10 @@
 
 升级会固化旧项目角色授权快照，模板修改不再影响已配置员工。主账号需核对项目长；旧历史更新初始化为已读，已有待审事项仍计数。详见包内《V3.24-账号与项目配置验收.md》。
 
-源码提交：`72255c82697e31e7782173b5f29d448b30d5482d`。
+源码提交：`d89461ec12911f2c040592db258c68057cdd890b`。
 
-SHA-256：`b380ff9d49be78d0db279451cd800e49ae1795aa10e439350a4a2000fe77ad07`。
+SHA-256：`7b1a2b3bffc837ccae222774899ee7136c22752e3ffe141fb7da9e592ee0afa8`。
 
 不含数据库、媒体、会话、node_modules或Linux构建产物。未由Codex部署正式服务器，未在公司Windows实机执行安装／更新。
+
+V3.24.1：水龙头及项目长配置区域、配置名单与相关审计记录仅绑定hjt主账号可见，其他超级管理员不显示。项目角色模板按原权限维护。本补丁无新增数据库迁移。
