@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable jsx-a11y/media-has-caption -- Previews preserve uploaded source videos, which may not have caption files. */
 /* eslint-disable @next/next/no-img-element -- Full images are opened only after an explicit preview action. */
+import {employeeLocalMode,saveEmployeeContent} from './employee-sync';
 import {clientRequestKey} from '@/lib/client-request-key';
 import {useEffect,useRef,useState} from 'react';
 import type {RelatedView} from './cross-related';
@@ -26,6 +27,10 @@ export function CrossEditor({relatedView,onRelatedViewChange,initialTab,onTabCha
  async function call(current:Row,action:string,extra:Record<string,unknown>={}){return (await projectApi('/api/cross-records/'+current.id,{action,revision:current.revision,...extra},'PATCH')).row as Row;}
  async function persist(submit:boolean){if(busy||!editable)return;if(!title.trim()){notify('请填写名称','error');return;}if(kind==='clue'&&!data.keywords?.trim()){notify('请填写关键字','error');return;}if(kind==='package'&&!parent){notify('请选择母版或主图产品','error');return;}if(submit&&!window.confirm(kind==='clue'?'确认提交线索？':'确认提交审核？正式内容提交后锁定。'))return;setBusy(true);let current=row;
  try{
+ if(employeeLocalMode()){
+ const activeFiles=files.filter(f=>!removed.includes(f.id));const submitted=await saveEmployeeContent({project,key:createKey.current,cover:videoCover,draft:{title,kind,parentId:parent,mainId:main,packageType,productCategoryId:category,data,target:current?{id:current.id,revision:current.revision}:undefined,submit,note,coverIndex:cover===null||!activeFiles.some(f=>f.id===cover)?null:activeFiles.findIndex(f=>f.id===cover)},files:[...activeFiles.map(f=>({name:f.file_name,size:f.file_size,mime:f.mime_type,retainedId:f.id})),...pending.map(p=>p.file)]});
+ createKey.current=clientRequestKey();setPending([]);setRemoved([]);setNote('');setVideoCover(null);await refresh(submitted.detail.row.id);await onChanged();setEditing(false);setSavedKey(formKey);notify(submit?'提交已保存在本机，连接后自动同步':'已保存在本机，后台自动同步','success');return;
+ }
  if(!current){const result=await projectApi('/api/cross-records',{kind,title,parentId:parent,mainId:main,packageType,sourceLocked,requestKey:createKey.current});current=(await projectApi('/api/cross-records?id='+result.id)).row as Row;setRow(current);}
  current=await call(current,'save',{title,parentId:parent,mainId:main,productCategoryId:category,data,coverFileId:removed.includes(cover??0)?null:cover});setRow(current);
  for(const fileId of removed){await projectApi(`/api/cross-records/${current!.id}/files`,{fileId,revision:current!.revision},'DELETE');current=(await projectApi('/api/cross-records?id='+current!.id)).row;setRow(current);setRemoved(old=>old.filter(id=>id!==fileId));}
@@ -61,7 +66,7 @@ export function CrossEditor({relatedView,onRelatedViewChange,initialTab,onTabCha
  {kind==='clue'?<><label className="cross-keywords">关键字（多个可用逗号分隔）<input required disabled={!editable||busy} value={data.keywords??''} onChange={e=>setData({...data,keywords:e.target.value})}/></label><label className="cross-origin">来源<input disabled={!editable||busy} value={data.source??''} onChange={e=>setData({...data,source:e.target.value})}/></label></>:null}
  {kind==='mother'?<label>产品分类<select disabled={!editable||busy} value={category??''} onChange={e=>setCategory(e.target.value?Number(e.target.value):null)}><option value="">未分类</option>{categories.filter(c=>c.status==='active'||c.id===category).map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label>:null}
  {media==='video'&&editable?<label>自定义视频封面（选填）<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setVideoCover(e.target.files?.[0]??null)}/>{videoCover?<span>待上传：{videoCover.name}</span>:null}</label>:null}{kind==='package'?<details><summary>商品资料（选填）</summary>{[['productTitle','商品标题'],['tags','商品标签'],['description','商品描述']].map(([field,label])=><label key={field}>{label}<textarea disabled={!editable||busy} value={data[field]??''} maxLength={20000} onChange={e=>setData({...data,[field]:e.target.value})}/></label>)}</details>:null}
- <div className="cross-metadata"><span>上传／制作：{row?.creatorName??people.find(p=>p.id===userId)?.name??'当前账号'}</span>{row?<><span>{kind==='clue'&&row.status==='approved'?'已提交':states[row.status]} · {row.version_number?'V'+row.version_number:'未提交'}</span><span>创建：{localTime(row.created_at)}</span></>:null}</div>
+ <div className="cross-metadata"><span>上传／制作：{row?.creatorName??people.find(p=>p.id===userId)?.name??'当前账号'}</span>{row?<><span>{kind==='clue'&&row.status==='approved'?'已提交':states[row.status]}{row.localSync?' · 待同步':''} · {row.version_number?'V'+row.version_number:'未提交'}</span><span>创建：{localTime(row.created_at)}</span></>:null}</div>
  {(editable)?<label className="cross-edit-note">{kind==='mother'?'母版说明／备注':'备注'}<textarea maxLength={10000} placeholder="填写备注（选填）" disabled={busy} value={note} onChange={e=>setNote(e.target.value)}/></label>:null}
  <footer className="cross-toolbar cross-editor-footer"><button disabled={busy} onClick={close}>{row?'取消编辑':'取消'}</button>{editable?<><button disabled={busy} onClick={()=>void persist(false)}>保存草稿</button><button className="primary-button" disabled={busy} onClick={()=>void persist(true)}>{row&&row.version_number>0?'提交新版本':kind==='clue'?'提交线索':'提交审核'}</button></>:null}</footer>
  </div></section>{overlays}</div>;

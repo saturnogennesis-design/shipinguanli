@@ -1,4 +1,6 @@
 "use client";
+import {employeeLocalMode,saveEmployeeContent} from './employee-sync';
+import {clientRequestKey} from '@/lib/client-request-key';
 import {ContentImageGallery} from "./content-image-gallery";
 import {EmployeeAccess} from "./employee-access";
 import {ProjectPermissions} from "./project-permissions";
@@ -11,7 +13,7 @@ import { MaterialCenterV3 } from "./material-center-v3";
 import { WorkReportCenterV3 } from "./work-report-center-v3";
 import { employeeColor,employeePalette } from "@/lib/content-presentation";
 import {  permissionGranted, permissionGroups, permissionKeys } from "@/lib/permissions";
-import { useBusinessContext } from "./business-context";
+import { useBusinessContext,readBusinessContext } from "./business-context";
 
 export type PlatformKey = string;
 export type PlatformIcons = Record<PlatformKey, string>;
@@ -1715,6 +1717,8 @@ function ContentPool({
       notify(reason instanceof Error ? reason.message : "退出清理失败，请重试");
     }
   };
+  const employeeUploadKey=useRef(clientRequestKey());
+  useEffect(()=>{const update=()=>{void reloadContents();};window.addEventListener('orbit-employee-synced',update);return()=>window.removeEventListener('orbit-employee-synced',update);});
   const saveUploads = async (finalAction: "draft" | "submit") => {
     if (!uploadRows.length) {
       notify("请先选择至少一个文件");
@@ -1766,6 +1770,10 @@ function ContentPool({
                 ...common,
               },
             ];
+      if(employeeLocalMode()){
+        for(let index=0;index<items.length;index++){const item=items[index];await saveEmployeeContent({project:Number(account),key:employeeUploadKey.current+'-'+index,draft:{title:item.title,kind:item.contentType,productMasterId:item.productMasterId,categoryId:item.categoryId,visibility:item.visibility,durationSeconds:'durationSeconds' in item?item.durationSeconds:null,data:{},submit:finalAction==='submit'},files:contentType==='视频'?[uploadRows[index].file]:uploadRows.map(row=>row.file),signal:controller.signal});}
+        employeeUploadKey.current=clientRequestKey();await reloadContents();resetUploadForm();notify(finalAction==='submit'?'文件及提交已保存在本机，连接后自动同步':'文件已保存在本机，后台自动同步','success');return;
+      }
       const createResponse = await fetch("/api/contents", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -1837,6 +1845,7 @@ function ContentPool({
             : `已将 ${imageCount} 张图片保存为 1 套图文草稿，并自动生成 V1`,
       );
     } catch (reason) {
+      if(employeeLocalMode()){notify((reason as Error).message+"；本机已保存的附件仍保留，请重试","error");return;}
       if ((reason as Error)?.name !== "AbortError") {
         try {
           await cleanupUploadSession(createdCodes);
@@ -1979,6 +1988,7 @@ function ContentPool({
     const added=detail.kind==="视频"?(draftFile?[draftFile]:[]):draftAddedFiles;let token="";
     setDraftUploading(true);
     try {
+      if(employeeLocalMode()){await saveEmployeeContent({project:readBusinessContext()?.accountId??0,key:employeeUploadKey.current+'-edit',draft:{title:detail.title,kind:detail.kind==='视频'?'video':'image_text',target:{code:detail.id},data:{remark:detail.remark??''},retainExisting:detail.kind!=='视频'||!draftFile,removeIds:draftRemovedIds,submit:false},files:added});employeeUploadKey.current=clientRequestKey();await reloadContents();setDetailMode('view');setDraftFile(null);setDraftAddedFiles([]);setDraftRemovedIds([]);setDraftExistingFiles([]);setDraftOriginal(null);setDraftPreview('');notify('修改已保存在本机，后台自动同步','success');return;}
       if(added.length||draftRemovedIds.length){
         const preparedResponse=await fetch(`/api/contents/${encodeURIComponent(detail.id)}/draft-files`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({files:added.map(file=>({fileName:file.name,mimeType:file.type||"application/octet-stream",fileSize:file.size})),removeFileIds:draftRemovedIds})});
         const prepared=await preparedResponse.json() as {error?:string;token?:string;uploads?:Array<{uploadUrl:string}>};if(!preparedResponse.ok||!prepared.token)throw new Error(prepared.error??"无法准备草稿文件");token=prepared.token;
@@ -2062,6 +2072,7 @@ function ContentPool({
         detail.kind === "视频"
           ? await readVideoDuration(versionFiles[0])
           : null;
+      if(employeeLocalMode()){await saveEmployeeContent({project:readBusinessContext()?.accountId??0,key:employeeUploadKey.current+'-version',draft:{title:detail.title,kind:detail.kind==='视频'?'video':'image_text',target:{code:detail.id,newVersion:true},data:{remark:detail.remark??''},submit:true,durationSeconds},files:versionFiles});employeeUploadKey.current=clientRequestKey();setVersionFiles([]);setVersionUploadOpen(false);await reloadContents();notify('新版本及提交已保存在本机，连接后自动同步','success');return;}
       const files = versionFiles.map((file) => ({
         fileName: file.name,
         mimeType: file.type || "application/octet-stream",

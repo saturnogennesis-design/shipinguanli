@@ -16,7 +16,7 @@ export function CrossDetail({relatedView,onRelatedViewChange,people,onSample,ini
  const related=detail.related??[],isActive=(row.lifecycle??'active')==='active';
  const canCreateRelated=isActive&&access.canCreate&&row.status==='approved';
  const main=rows.find(r=>r.id===row.main_id),source=rows.find(r=>r.id===row.parent_id)??detail.parent;
- const state=row.kind==='clue'&&row.status==='approved'?'已提交':row.kind==='clue'&&row.status==='draft'&&row.version_number>0?'有修改待提交':states[row.status];
+ const state=(row.kind==='clue'&&row.status==='approved'?'已提交':row.kind==='clue'&&row.status==='draft'&&row.version_number>0?'有修改待提交':states[row.status])+(row.localSync?' · 待同步':'');
  const timeline=detail.timeline.filter(e=>(!who||e.actorName===who)&&(!action||e.action===action)&&(!stage||e.kind===stage)&&(!date||localTime(e.created_at).startsWith(date.replaceAll('-','/'))));
  const noteList=[...detail.notes.map(n=>({...n,source:false})),...(detail.copiedNotes??[]).map(n=>({...n,source:true}))].sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id-a.id);
  function openRelated(item:Row){window.dispatchEvent(new CustomEvent('orbit-cross-related-detail',{detail:{row:item}}));}

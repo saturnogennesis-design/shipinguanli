@@ -1,0 +1,15 @@
+'use client';
+import {clientRequestKey} from '@/lib/client-request-key';
+export type EmployeeRetained={name:string;size:number;mime:string;retainedId:number;retainedType?:string};
+declare global{interface Window{__ORBIT_EMPLOYEE__?:{protocol:number};}}
+export function employeeLocalMode(){return typeof window!=='undefined'&&window.__ORBIT_EMPLOYEE__?.protocol===2;}
+export async function saveEmployeeContent(input:{project:number;draft:Record<string,unknown>;files:(File|EmployeeRetained)[];key?:string;signal?:AbortSignal;cover?:File|null}){
+ if(input.cover){input.draft={...input.draft};input.files=[...input.files,input.cover];}
+ const files=input.files.map(f=>f instanceof File?{name:f.name,size:f.size,lastModified:f.lastModified,mime:f.type||mimeForName(f.name)}:f);
+ if(input.cover)Object.assign(files[files.length-1],{cover:true});
+ const response=await fetch('/employee-api/drafts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project:input.project,draft:{...input.draft,files},key:input.key??clientRequestKey()}),signal:input.signal}),job=await response.json();if(!response.ok)throw Error(job.error??'本机保存失败');
+ if(job.accepted){const r=await fetch('/employee-api/ready',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:job.id})}),d=await r.json();if(!r.ok)throw Error(d.error);return d;}
+ for(let i=0;i<input.files.length;i++){const file=input.files[i];if(!(file instanceof File))continue;const r=await fetch('/employee-api/file?job='+job.id+'&index='+(job.uploadMap?.[i]??i),{method:'PUT',headers:{'content-type':file.type||'application/octet-stream'},body:file,signal:input.signal}),result=await r.json();if(!r.ok)throw Error(result.error??'本机附件保存失败');if(file.type.startsWith('image/'))try{const bitmap=await createImageBitmap(file),scale=Math.min(1,240/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d')!.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/jpeg',0.75));if(blob)await fetch('/employee-api/thumbnail?job='+job.id+'&index='+(job.uploadMap?.[i]??i),{method:'PUT',body:blob});}catch{/* Original bytes remain protected even if a derivative cannot be generated. */}}
+ const ready=await fetch('/employee-api/ready',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:job.id}),signal:input.signal}),result=await ready.json();if(!ready.ok)throw Error(result.error??'本机提交保存失败');window.dispatchEvent(new Event('orbit-employee-local-change'));return result;
+}
+function mimeForName(name:string){return ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',mp4:'video/mp4',webm:'video/webm',pdf:'application/pdf'} as Record<string,string>)[name.split('.').pop()?.toLowerCase()??'']??'application/octet-stream';}
