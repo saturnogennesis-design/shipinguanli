@@ -1,3 +1,28 @@
+# V3.26.0 主机与员工端1.1.0（同页无感同步测试版）
+
+- [主机安装／更新](OrbitVideoSetup-v3.26.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.26.0.zip.sha256)
+- [Windows员工端](OrbitEmployee-v1.1.0.zip?raw=1) · [SHA-256](OrbitEmployee-v1.1.0.zip.sha256)
+- [Mac Apple芯片员工端](OrbitEmployee-Mac-arm64-v1.1.0.zip?raw=1) · [SHA-256](OrbitEmployee-Mac-arm64-v1.1.0.zip.sha256)
+- [Mac Intel员工端](OrbitEmployee-Mac-x64-v1.1.0.zip?raw=1) · [SHA-256](OrbitEmployee-Mac-x64-v1.1.0.zip.sha256)
+
+先备份并更新主机V3.26.0，再更新员工端1.1.0。主机继续原网页版；员工原系统页面正常上传、保存、提交，离线先存本机，恢复连接自动上传并完成原来点击的提交。首次必须在线登录并完成缓存。旧1.0独立工作台要用完整包更新一次。更新保留data，勿删除未同步内容。
+
+Windows运行UpdateEmployee.cmd（首次InstallEmployee.cmd）；Mac运行UpdateEmployee.command（首次InstallEmployee.command），Mac最低13.5，按芯片选择。均自带官方运行环境。主机更新使用Update.cmd。
+
+源代码提交：`3352b19a7bf97d6e37ce4d12d71c371e5ab8ac6a`。128项业务／客户端／安装布局测试、81项权限接口、30项同步接口、12项原页面浏览器检查通过，生产构建及类型检查通过。Windows／Mac实机安装尚未验证；先用一台员工电脑试用。审核及管理等实时操作仍需连接主机。详见包内《V3.26-同页无感同步验收.md》。未部署、未合并默认分支。
+
+`OrbitVideoSetup-v3.26.0.zip`：`d501703184f62220d396788fef0509b86b1e4e72670a99f25645b2779d978aca`
+
+`OrbitEmployee-v1.1.0.zip`：`7be605add936efb052f6965b80a681e90d99504734aeaaa655f0ae847d73a7b9`
+
+`OrbitEmployee-Mac-arm64-v1.1.0.zip`：`07da8f7489428977013ef3a9b728aa44163886545ec6e553475f2f8ccef26d6e`
+
+`OrbitEmployee-Mac-x64-v1.1.0.zip`：`7d1be74d54f165fffaf701ab2ff60e73956221411ca08196ae403e8893715739`
+
+---
+
+以下是旧版历史记录；1.0独立工作台不符合当前同页无感需求，请使用上面的1.1.0。
+
 # V3.25.0 主机支持与员工端1.0.1（Windows测试版）
 
 - [主机安装／更新包](OrbitVideoSetup-v3.25.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.25.0.zip.sha256)
