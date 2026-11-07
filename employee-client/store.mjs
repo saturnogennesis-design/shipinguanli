@@ -3,6 +3,7 @@ import {mkdir,rm,stat,statfs,readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createHash,randomBytes,createCipheriv,createDecipheriv} from 'node:crypto';
 import {existsSync,readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+export function defaultDataRoot(platform=process.platform,env=process.env){return env.ORBIT_EMPLOYEE_DATA??(platform==='darwin'?join(env.HOME??'.','Library','Application Support','OrbitEmployee','data'):join(env.LOCALAPPDATA??env.HOME??'.','OrbitEmployee','data'));}
 export const CACHE_LIMIT=5*1024**3,LEASE_MS=7*86400000;
 export class ClientStore{
  constructor(root,{limit=CACHE_LIMIT}={}){this.root=root;this.limit=limit;mkdirSync(root,{recursive:true,mode:0o700});for(const p of ['cache','queue'])mkdirSync(join(root,p),{recursive:true,mode:0o700});const key=join(root,'credential.key');if(!existsSync(key))writeFileSync(key,randomBytes(32),{mode:0o600});this.key=readFileSync(key);this.db=new DatabaseSync(join(root,'client.sqlite'));this.db.exec(`PRAGMA journal_mode=WAL;PRAGMA foreign_keys=ON;

@@ -6,9 +6,9 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import {pipeline} from 'node:stream/promises';
 import {Readable,Transform} from 'node:stream';
-import {ClientStore,LEASE_MS} from './store.mjs';
+import {ClientStore,LEASE_MS,defaultDataRoot} from './store.mjs';
 import {stageUpdate} from './updater.mjs';
-export const VERSION='1.0.1';
+export const VERSION='1.0.2';
 const here=dirname(fileURLToPath(import.meta.url)),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export function serverOrigin(value){const u=new URL(value);if(u.username||u.password||u.pathname!=='/'||u.search||u.hash)throw Error('请输入主机根地址，不带账号、路径或参数');const local=/^(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(u.hostname);if(u.protocol!=='https:'&&!(u.protocol==='http:'&&local))throw Error('远程主机必须使用HTTPS，局域网地址可使用HTTP');return u.origin;}
 async function jsonBody(req,max=160000){const chunks=[];let n=0;for await(const b of req){n+=b.length;if(n>max)throw Error('请求过大');chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString()||'{}');}
@@ -81,4 +81,4 @@ export class EmployeeClient{
  async start(){await this.store.pruneBroken();this.rate=this.store.setting('rate',this.rate);this.server=createServer((req,res)=>void this.handle(req,res));await new Promise((resolve,reject)=>{this.server.once('error',reject);this.server.listen(this.port,'127.0.0.1',resolve);});this.timer=setInterval(()=>void this.sync(),60000);setTimeout(()=>void this.sync(),10000).unref();return this;}
  async close(){clearInterval(this.timer);this.controller?.abort();await new Promise(r=>this.server.close(r));this.store.close();}
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const root=process.env.ORBIT_EMPLOYEE_DATA??join(process.env.LOCALAPPDATA??process.env.HOME??'.','OrbitEmployee','data'),app=new EmployeeClient(root,{port:Number(process.env.ORBIT_EMPLOYEE_PORT)||3199});await app.start();process.send?.({ready:true});console.log('员工端已在 http://127.0.0.1:'+app.port+' 启动');}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const root=defaultDataRoot(),app=new EmployeeClient(root,{port:Number(process.env.ORBIT_EMPLOYEE_PORT)||3199});await app.start();process.send?.({ready:true});console.log('员工端已在 http://127.0.0.1:'+app.port+' 启动');}
