@@ -6,7 +6,7 @@ root=Path(__file__).resolve().parents[1]
 version=json.loads((root/'package.json').read_text())['version']
 commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
 tracked=subprocess.check_output(['git','ls-files','-z'],cwd=root).decode().split('\0')
-folders={'app','lib','db','drizzle','public','deploy','docs'}
+folders={'app','lib','db','drizzle','public','deploy','docs','employee-client'}
 root_files={'Install.cmd','Update.cmd','package.json','pnpm-lock.yaml','pnpm-workspace.yaml','tsconfig.json','next-env.d.ts','next.config.ts','vite.config.ts','postcss.config.mjs','eslint.config.mjs','drizzle.config.ts'}
 files=[]
 for name in sorted(n for n in tracked if n):
@@ -20,7 +20,7 @@ for name in sorted(n for n in tracked if n):
   data=data.decode('utf-8-sig').replace('\r\n','\n').replace('\n','\r\n').encode('utf-8')
   if p.suffix.lower()=='.ps1':data=b'\xef\xbb\xbf'+data
  files.append((name,data))
-required={'Install.cmd','Update.cmd','deploy/windows/launch-install.ps1','deploy/windows/launch-update.ps1','deploy/windows/verify-package.ps1','drizzle/0040_cross_product_sampling.sql','drizzle/0041_cross_source_lock.sql','drizzle/0042_project_roles.sql','drizzle/0043_account_project_configuration.sql','drizzle/0044_project_update_reads.sql','安装包使用说明.md','V3.22-需求对账与验收.md','V3.23-项目权限配置与验收.md','V3.24-账号与项目配置验收.md'}
+required={'drizzle/0045_offline_uploads.sql','employee-client/server.mjs','employee-client/ui/index.html','Install.cmd','Update.cmd','deploy/windows/launch-install.ps1','deploy/windows/launch-update.ps1','deploy/windows/verify-package.ps1','drizzle/0040_cross_product_sampling.sql','drizzle/0041_cross_source_lock.sql','drizzle/0042_project_roles.sql','drizzle/0043_account_project_configuration.sql','drizzle/0044_project_update_reads.sql','安装包使用说明.md','V3.22-需求对账与验收.md','V3.23-项目权限配置与验收.md','V3.24-账号与项目配置验收.md'}
 assert required.issubset({name for name,_ in files})
 manifest={'version':version,'sourceCommit':commit,'packageKind':'windows-online-install-update','requires':{'node':'>=22.13.0','networkDuringInstall':True},'files':[{'path':name,'sha256':hashlib.sha256(data).hexdigest()} for name,data in files]}
 folder=f'OrbitVideoSetup-v{version}'
