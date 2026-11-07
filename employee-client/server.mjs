@@ -30,8 +30,8 @@ export class EmployeeClient{
    let detail;try{detail=await this.api(cross?'/api/cross-records?id='+row.id+'&background=1':'/api/contents/'+encodeURIComponent(row.code)+'/versions?background=1',p.id);}catch(e){if([403,404].includes(e.status)){valid.delete(k);continue;}throw e;}
    const files=cross?detail.files.map(f=>({id:f.id,name:f.file_name,mime:f.mime_type,size:f.file_size,url:'/api/cross-records/files/'+f.id+'?projectId='+p.id})):detail.versions.filter(v=>v.current).flatMap(v=>v.mimeType==='application/x-image-set'?v.files.filter(f=>f.fileUrl).map(f=>({id:f.id,name:f.fileName,mime:f.mimeType,size:f.fileSize,url:f.fileUrl})):v.fileUrl?[{id:v.id,name:v.fileName,mime:v.mimeType,size:v.fileSize,url:v.fileUrl}]:[]);
    const value={k,project:p.id,projectName:p.name,title:row.title,kind:cross?row.kind:row.contentType,status:row.status??row.reviewStatus,row,detail,files,updated:Date.now()};await this.store.putRecord(a.ns,k,p.id,value,stamp);
-   // Metadata revisions invalidate cached originals and derivatives, even when file URLs are reused.
-   for(const b of this.store.db.prepare('SELECT * FROM blobs WHERE ns=?').all(a.ns)){if(b.k.startsWith(k+'|')){await rm(b.path,{force:true});this.store.db.prepare('DELETE FROM blobs WHERE ns=? AND k=?').run(a.ns,b.k);}}
+   // Notes and text updates preserve unchanged immutable originals; file replacement invalidates its slot.
+   for(const b of this.store.db.prepare('SELECT * FROM blobs WHERE ns=?').all(a.ns)){if(b.k.startsWith(k+'|')){const slot=Number(b.k.split('|')[1]),previous=cached?JSON.parse(cached.json).files[slot]:null,current=files[slot];if(previous&&current&&previous.url===current.url&&previous.mime===current.mime&&previous.size===current.size)continue;await rm(b.path,{force:true});this.store.db.prepare('DELETE FROM blobs WHERE ns=? AND k=?').run(a.ns,b.k);}}
   }
  }
  await this.store.reconcile(a.ns,valid);this.store.set('catalog:'+a.ns,catalog);this.store.set('lastSync:'+a.ns,Date.now());
