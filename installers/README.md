@@ -1,3 +1,30 @@
+# V3.28.0主机 / 员工端1.3.0（测试版）
+
+- [主机3.28.0安装／更新](OrbitVideoSetup-v3.28.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.28.0.zip.sha256)
+- [Windows员工端1.3.0](OrbitEmployee-v1.3.0.zip?raw=1) · [SHA-256](OrbitEmployee-v1.3.0.zip.sha256)
+- [Mac Apple芯片员工端1.3.0](OrbitEmployee-Mac-arm64-v1.3.0.zip?raw=1) · [SHA-256](OrbitEmployee-Mac-arm64-v1.3.0.zip.sha256)
+- [Mac Intel员工端1.3.0](OrbitEmployee-Mac-x64-v1.3.0.zip?raw=1) · [SHA-256](OrbitEmployee-Mac-x64-v1.3.0.zip.sha256)
+
+先备份主机数据库和媒体，再更新主机3.28（Update.cmd），随后更新员工端1.3（Windows UpdateEmployee.cmd，Mac UpdateEmployee.command；首次使用InstallEmployee入口）。更新保留员工data与未同步文件，无新增数据库迁移。主机继续原网页版；首次需在线完成页面缓存。Mac要求13.5以上，按芯片选择。
+
+本版更新：线索列表／卡片重排，名称、紧急程度和领取人优先，低频操作收进更多；跨境及通用详情返回区吸顶；新进入页面获取最新数据，沿来源返回保留筛选、分页、滚动与完整详情正文。员工端主动探测主机、已同步编号读最新记录，未同步工作不被覆盖。
+
+源代码：`cf6f4c8c03d02a8ef38b7b01e96d2321ce410d74`。139项回归、35项同步接口及42项浏览器检查通过，生产构建、TypeScript、定向ESLint通过。Windows／Mac实机安装尚未验证，先选一台试用。未部署、未合并默认分支。详见包内《V3.28-线索布局与返回刷新验收.md》。
+
+[测试数据列表预览](../docs/screenshots/v3.28-clue-list.png) · [卡片预览](../docs/screenshots/v3.28-clue-cards.png) · [窄屏预览](../docs/screenshots/v3.28-clue-narrow.png)
+
+`OrbitVideoSetup-v3.28.0.zip`：`8b8afa021fb3ff3ffbc00d078872953a1f41be1e120fa31a2d08ec643fdd2db9`
+
+`OrbitEmployee-v1.3.0.zip`：`4abb4653b77c6b0feb34a577832f39f300797ad2c8f3b4a7e7044814fd9b2f13`
+
+`OrbitEmployee-Mac-arm64-v1.3.0.zip`：`83789cfc05bd482d5d5cb85eb789ab4e61746175aac4de1a07912c25a0127083`
+
+`OrbitEmployee-Mac-x64-v1.3.0.zip`：`370f6c50c84ca282afbbff99b161990d89fec48ce7d7042c4d092111a1861324`
+
+---
+
+以下为旧版历史记录，当前使用上面的3.28／1.3版本。
+
 # V3.27.0主机 / 员工端1.2.0（测试版）
 
 - [主机3.27.0安装／更新](OrbitVideoSetup-v3.27.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.27.0.zip.sha256)
