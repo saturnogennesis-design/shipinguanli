@@ -1,3 +1,28 @@
+# V3.27.0主机 / 员工端1.2.0（测试版）
+
+- [主机3.27.0安装／更新](OrbitVideoSetup-v3.27.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.27.0.zip.sha256)
+- [Windows员工端1.2.0](OrbitEmployee-v1.2.0.zip?raw=1) · [SHA-256](OrbitEmployee-v1.2.0.zip.sha256)
+- [Mac Apple芯片员工端1.2.0](OrbitEmployee-Mac-arm64-v1.2.0.zip?raw=1) · [SHA-256](OrbitEmployee-Mac-arm64-v1.2.0.zip.sha256)
+- [Mac Intel员工端1.2.0](OrbitEmployee-Mac-x64-v1.2.0.zip?raw=1) · [SHA-256](OrbitEmployee-Mac-x64-v1.2.0.zip.sha256)
+
+先备份主机数据库和媒体，再更新主机3.27（Update.cmd），然后更新员工端1.2（Windows UpdateEmployee.cmd，Mac UpdateEmployee.command；首次使用InstallEmployee入口）。更新保留员工data与未同步文件。主机继续原网页版，员工首次需在线登录完成缓存。Mac要求13.5以上，按芯片选择。
+
+包含线索领取人／公开待分配、授权分配移交、项目长紧急程度与项目角标、超级管理员业务资料彻底删除、员工每日对账与缺失／截断文件补传。移交不转历史母版；删除有依赖会阻止，不级联；不替代备份，双方未同时在线不能完成传输。
+
+源码：`6ef91d14ee64ae640428ebc239a1d031d3aa43a6`。138项回归、81项权限检查、35项新增业务接口检查、35项同步检查、20项浏览器检查通过，生产构建及类型检查通过。Windows／Mac实机安装与性能尚未验收，先选一台试用。未部署、未合并默认分支。详见包内《V3.27-线索分配删除与每日同步验收.md》。
+
+`OrbitVideoSetup-v3.27.0.zip`：`b8e04355bba0027542f8d337bc573ebab9078c6176db5b45aed3a87cd5dd3061`
+
+`OrbitEmployee-v1.2.0.zip`：`7009453eafffa4694abddf82569c47e0ec383569cf925c15732bd55db4b42a74`
+
+`OrbitEmployee-Mac-arm64-v1.2.0.zip`：`f2c519c98d17366bb605bde870a6b1a9056b9e24bd5a2424dfb2b8abc8e8a2a3`
+
+`OrbitEmployee-Mac-x64-v1.2.0.zip`：`1c39ff1933bc209855d35321c123090e842f86da43de6559c9d861c521295507`
+
+---
+
+以下为旧版历史记录，当前使用上面的3.27／1.2版本。
+
 # V3.26.0 主机与员工端1.1.0（同页无感同步测试版）
 
 - [主机安装／更新](OrbitVideoSetup-v3.26.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.26.0.zip.sha256)
