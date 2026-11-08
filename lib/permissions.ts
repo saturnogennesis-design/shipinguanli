@@ -9,7 +9,7 @@ export const permissionGroups:PermissionGroup[] = [
     {key:'cross.archive',label:'归档跨境资料',description:'归档和取消归档资料',highRisk:true},
     {key:'cross.delete',label:'删除与恢复跨境资料',description:'移入回收站及恢复，保留来源与历史',highRisk:true},
     {key:'cross.review',label:'审核跨境资料',description:'确认母版、审核产品包并填写退回意见',highRisk:true},
-    {key:'cross.assign',label:'维护项目资料',description:'维护授权项目内的草稿与退回资料，制作人仍记录上传人',highRisk:true},
+    {key:'cross.assign',label:'分配移交与维护资料',description:'分配或移交可见线索，维护可见项目资料；不扩大查看范围或变更历史母版归属',highRisk:true},
     {key:'cross.download',label:'下载交付包',description:'下载审核通过的产品包交付文件',highRisk:true},
   ]},
   {key:"asset",label:"素材中心",permissions:[

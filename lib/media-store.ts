@@ -137,6 +137,17 @@ class LocalMediaStore {
     return missing;
   }
 
+  async mismatched(files: { key: string; size: number }[]) {
+    const invalid: string[] = [];
+    for (const file of files) {
+      try {
+        const info = await stat(safePath(file.key));
+        if (!info.isFile() || info.size !== file.size) invalid.push(file.key);
+      } catch { invalid.push(file.key); }
+    }
+    return invalid;
+  }
+
   async quarantine(keys: string[], batchId: string) {
     const moved: QuarantinedMedia[] = [];
     try {

@@ -1,0 +1,16 @@
+ALTER TABLE cross_records ADD COLUMN assignee_id INTEGER REFERENCES users(id);
+ALTER TABLE cross_records ADD COLUMN clue_public INTEGER NOT NULL DEFAULT 0 CHECK(clue_public IN (0,1));
+ALTER TABLE cross_records ADD COLUMN urgency INTEGER NOT NULL DEFAULT 0 CHECK(urgency BETWEEN 0 AND 2);
+UPDATE cross_records SET assignee_id=creator_id WHERE kind='clue';
+CREATE INDEX idx_cross_assignee ON cross_records(project_id,kind,assignee_id);
+CREATE TABLE deleted_business_records(project_id INTEGER NOT NULL,kind TEXT NOT NULL,record_key TEXT NOT NULL,actor_id INTEGER NOT NULL,deleted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(project_id,kind,record_key));
+CREATE TABLE cross_purge_guard(record_id INTEGER PRIMARY KEY);
+DROP TRIGGER cross_versions_no_delete;
+DROP TRIGGER cross_events_no_delete;
+DROP TRIGGER cross_notes_no_delete;
+DROP TRIGGER cross_copy_notes_delete;
+CREATE TRIGGER cross_versions_no_delete BEFORE DELETE ON cross_versions WHEN NOT EXISTS(SELECT 1 FROM cross_purge_guard WHERE record_id=OLD.record_id) BEGIN SELECT RAISE(ABORT,'Historical versions are immutable'); END;
+CREATE TRIGGER cross_events_no_delete BEFORE DELETE ON cross_events WHEN NOT EXISTS(SELECT 1 FROM cross_purge_guard WHERE record_id=OLD.record_id) BEGIN SELECT RAISE(ABORT,'System events are immutable'); END;
+CREATE TRIGGER cross_notes_no_delete BEFORE DELETE ON cross_notes WHEN NOT EXISTS(SELECT 1 FROM cross_purge_guard WHERE record_id=OLD.record_id) BEGIN SELECT RAISE(ABORT,'备注提交后不可删除'); END;
+CREATE TRIGGER cross_copy_notes_delete BEFORE DELETE ON cross_copy_notes WHEN NOT EXISTS(SELECT 1 FROM cross_purge_guard WHERE record_id=OLD.record_id) BEGIN SELECT RAISE(ABORT,'来源备注不可删除'); END;
+CREATE TRIGGER cross_default_assignee AFTER INSERT ON cross_records WHEN NEW.kind='clue' AND NEW.assignee_id IS NULL AND NEW.clue_public=0 BEGIN UPDATE cross_records SET assignee_id=NEW.creator_id WHERE id=NEW.id; END;

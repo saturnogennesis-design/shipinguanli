@@ -1,5 +1,6 @@
 "use client";
 
+import {BusinessAdminProvider} from './business-admin';
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { clearBusinessContext, readBusinessContext, type BusinessAccountContext } from "./business-context";
 
@@ -114,7 +115,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const selectedAccount = contextOptions.find((item) => String(item.id) === selectedAccountId);
 
-  if (mode === "ready") return <>{children}</>;
+  if (mode === "ready") return <BusinessAdminProvider key={user?.id}>{children}</BusinessAdminProvider>;
   return <main className="auth-shell"><section className="auth-card">
     <div className="auth-brand"><span>O</span><div><strong>内容中台</strong><small>公司局域网内部系统</small></div></div>
     {mode === "loading" && <div className="auth-message"><i className="auth-spinner" /><h1>正在连接本地服务</h1><p>正在检查数据库和登录状态。</p></div>}

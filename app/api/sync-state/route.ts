@@ -1,0 +1,4 @@
+import {requireUser} from '@/lib/server-auth';
+import {getLocalDatabase} from '@/db';
+import {visibleProjectIds} from '@/lib/project-access';
+export async function GET(request:Request){const auth=await requireUser(request);if(!auth.user)return auth.response;const db=getLocalDatabase(),projects=visibleProjectIds(db,auth.user);const q=new URL(request.url).searchParams,scope=[...projects].sort((a,b)=>a-b).join(','),after=q.get('scope')===scope?Math.max(0,Number(q.get('after'))||0):0;const deleted=projects.length?db.prepare(`SELECT rowid AS cursor,project_id AS project,kind,record_key AS key FROM deleted_business_records WHERE project_id IN (${projects.map(()=>'?').join(',')}) AND kind<>'cross_request' AND rowid>? ORDER BY rowid`).all(...projects,after):[];return Response.json({deleted,scope,cursor:Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM deleted_business_records').get()!.n)},{headers:{'cache-control':'no-store'}});}

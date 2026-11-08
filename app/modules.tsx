@@ -1,4 +1,5 @@
 "use client";
+import {PermanentDeleteButton} from './permanent-delete-button';
 import {employeeLocalMode,saveEmployeeContent} from './employee-sync';
 import {clientRequestKey} from '@/lib/client-request-key';
 import {ContentImageGallery} from "./content-image-gallery";
@@ -1280,7 +1281,7 @@ function ContentRecycleBin({
                   </td>
                   <td>{item.productName ?? "未分配"}</td>
                   <td>{item.accountName ?? "未分配"}</td>
-                  <td>{item.uploaderName}</td>
+                  <td>{item.uploaderName}<PermanentDeleteButton kind="content" code={item.code} onDeleted={load}/></td>
                   <td>V{item.latestVersionNumber}</td>
                   <td>{formatServerTime(item.createdAt)}</td>
                   <td>{formatServerTime(item.deletedAt)}</td>
@@ -1718,7 +1719,7 @@ function ContentPool({
     }
   };
   const employeeUploadKey=useRef(clientRequestKey());
-  useEffect(()=>{const update=()=>{void reloadContents();};window.addEventListener('orbit-employee-synced',update);return()=>window.removeEventListener('orbit-employee-synced',update);});
+  useEffect(()=>{const update=()=>{void reloadContents();};window.addEventListener('orbit-employee-synced',update);window.addEventListener('orbit-business-deleted',update);return()=>{window.removeEventListener('orbit-employee-synced',update);window.removeEventListener('orbit-business-deleted',update);};});
   const saveUploads = async (finalAction: "draft" | "submit") => {
     if (!uploadRows.length) {
       notify("请先选择至少一个文件");
@@ -2502,7 +2503,7 @@ function ContentPool({
               <button className="lane-expand-heading" onClick={()=>{setSelectedIds([]);setExpandedLane(lane);}} aria-label={`展开${status}完整列表`}><h3>{status}</h3><span>{total}</span><small>展开 ↗</small></button>
               <div className="content-lane-scroll" ref={node=>{if(node&&scrollPositions.current[lane]!==undefined)node.scrollTop=scrollPositions.current[lane];}} onScroll={e=>{scrollPositions.current[lane]=e.currentTarget.scrollTop;}}>
                 {laneRows.map(row=><article key={row.id} className="content-board-card compact-content-card cover-tile" style={{borderColor:employeeColor(row.uploaderUserId??row.owner,row.contentColor)+"cc"}}>{row.featured?<span className="cover-featured-badge" title="推荐内容">★</span>:null}
-                  <ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} summary={`${row.owner} · ${row.status} · ${row.version} · ${row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`} · ${formatBytes(row.fileSize??0)}\n${row.time}`} onOpen={()=>openDetail(row.id,"view")}/>
+                  <><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} summary={`${row.owner} · ${row.status} · ${row.version} · ${row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`} · ${formatBytes(row.fileSize??0)}\n${row.time}`} onOpen={()=>openDetail(row.id,"view")}/><PermanentDeleteButton kind="content" code={row.id}/></>
                   <div className="content-product-chip" title={row.product==="未分配"?"无商品":row.product}><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product==="未分配"?"无商品":row.product}</span></div>
                 </article>)}
                 {!laneRows.length?<div className="empty-state">暂无{status}内容</div>:null}
@@ -2512,7 +2513,7 @@ function ContentPool({
                 <RuleFilterBar moduleKey="contents" fields={contentFilterFields} rules={smartRules} onChange={setSmartRules} view={{sort:boardSort,group:"status"}} onViewChange={view=>setBoardSort(view.sort??"default")}/>
                 <div className="expanded-content-list"><table><thead><tr><th><input type="checkbox" aria-label="选择当前页全部内容" checked={laneRows.length>0&&laneRows.every(row=>selectedIds.includes(row.id))} onChange={event=>setSelectedIds(event.target.checked?[...new Set([...selectedIds,...laneRows.map(row=>row.id)])]:selectedIds.filter(id=>!laneRows.some(row=>row.id===id)))}/></th><th>状态</th><th>内容</th><th>上传人</th><th>商品</th><th>版本</th><th>时长 / 张数</th><th>文件大小</th><th>上传时间</th><th>审核评语</th></tr></thead><tbody>{laneRows.map(row=><tr key={row.id} style={{backgroundColor:employeeColor(row.uploaderUserId??row.owner,row.contentColor)}}>
                   <td><input aria-label={`选择${row.title}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={e=>setSelectedIds(e.target.checked?[...selectedIds,row.id]:selectedIds.filter(id=>id!==row.id))}/></td><td>{row.status}</td>
-                  <td><div className="expanded-content-title"><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} onOpen={()=>openDetail(row.id,"view")}/><button className="content-detail-link" onClick={()=>openDetail(row.id,"view")}>{row.title}</button>{row.categoryName?<small>{row.categoryName}</small>:null}</div></td><td>{row.owner}</td><td><span className="expanded-product-cell"><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product}</span></span></td><td>{row.version}</td><td>{row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`}</td><td>{formatBytes(row.fileSize??0)}</td><td>{row.time}</td><td className="expanded-review">{row.reviewComment||row.rejectionReason||"—"}</td>
+                  <td><div className="expanded-content-title"><><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} onOpen={()=>openDetail(row.id,"view")}/><PermanentDeleteButton kind="content" code={row.id}/></><button className="content-detail-link" onClick={()=>openDetail(row.id,"view")}>{row.title}</button>{row.categoryName?<small>{row.categoryName}</small>:null}</div></td><td>{row.owner}</td><td><span className="expanded-product-cell"><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product}</span></span></td><td>{row.version}</td><td>{row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`}</td><td>{formatBytes(row.fileSize??0)}</td><td>{row.time}</td><td className="expanded-review">{row.reviewComment||row.rejectionReason||"—"}</td>
                 </tr>)}</tbody></table>{!laneRows.length?<div className="empty-state">暂无符合条件的内容</div>:null}</div>{pager}
                 {selectedIds.length?<footer><span>已选{selectedIds.length}条</span>{boardCan("content.edit")&&selected.some(row=>row.status==="草稿")?<><button onClick={()=>{setBatchValue("");setBatchModal("rename");}}>批量改名称</button><button onClick={()=>{setBatchValue("");setBatchModal("remark");}}>批量写备注</button></>:null}{boardCan("content.submit")?<button onClick={submitDrafts}>提交草稿</button>:null}{boardCan("content.withdraw")?<button onClick={withdraw}>批量撤回审核</button>:null}{boardCan("content.archive")?<button onClick={()=>void archiveSelected()}>{archivedView?"恢复所选":"归档所选"}</button>:null}{boardCan("content.delete")?<button onClick={deleteSelected}>移入回收站</button>:null}<button onClick={()=>setSelectedIds([])}>取消选择</button></footer>:null}
               </CenterDialog>:null}
@@ -3348,7 +3349,7 @@ function ReviewCenter({
                   <tr key={item.id} style={{backgroundColor:employeeColor(item.uploaderUserId??item.owner,item.contentColor)}}>
                     <td>{canProcess?<input type="checkbox" aria-label={`选择${item.title}`} disabled={item.status==="审核中"} checked={selectedIds.includes(item.id)} onChange={e=>setSelectedIds(e.target.checked?[...selectedIds,item.id]:selectedIds.filter(id=>id!==item.id))}/>:null}</td>
                     <td><Badge tone={item.status==="审核中"?"blue":"slate"}>{item.status}</Badge>{item.lockOwner?<small className="locked-by">{item.lockOwner}占用</small>:null}</td>
-                    <td><ContentPreview hoverEnabled={false} code={item.id} versionId={item.versionId} title={item.title} kind={item.kind}/><div className="content-cell"><strong>{item.title}</strong></div></td><td>{item.kind}</td>
+                    <td><><ContentPreview hoverEnabled={false} code={item.id} versionId={item.versionId} title={item.title} kind={item.kind}/><PermanentDeleteButton kind="content" code={item.id}/></><div className="content-cell"><strong>{item.title}</strong></div></td><td>{item.kind}</td>
                     <td>{item.owner}</td><td><span className="expanded-product-cell"><ProductImage url={item.productImageUrl} name={item.product}/><span>{item.product}</span></span></td><td>{item.time}</td><td>{item.detail}</td><td>{item.version}</td>
                   </tr>
                 ))}              </tbody>
@@ -5467,7 +5468,7 @@ function VersionCenter({
                       <div className="version-row-actions">
                         <button onClick={() => setDetailId(group.id)}>
                           查看版本
-                        </button>
+                        </button><PermanentDeleteButton kind="content" code={group.id}/>
                       </div>
                     </td>
                   </tr>
@@ -5865,7 +5866,7 @@ function VersionCenterLive({
                   <td>
                     <button onClick={() => setDetailCode(item.code)}>
                       查看版本
-                    </button>
+                    </button><PermanentDeleteButton kind="content" code={item.code} onDeleted={load}/>
                   </td>
                 </tr>
               ))}

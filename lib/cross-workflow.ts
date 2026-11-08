@@ -3,18 +3,18 @@ import type {DatabaseSync} from 'node:sqlite';
 import {atomicWrite} from './publishing-write';
 import {maySeeProject,isProjectMaster} from './project-visibility';
 export type CrossKind='clue'|'mother'|'package';
-export type CrossRecord={id:number;project_id:number;kind:CrossKind;parent_id:number|null;main_id:number|null;package_type:string;product_category_id:number|null;copied_from_id:number|null;cover_file_id:number|null;title:string;body_json:string;creator_id:number;maker_id:number;status:string;revision:number;version_number:number;lifecycle?:string;previous_lifecycle?:string;is_sampled?:number;source_locked?:number};
+export type CrossRecord={assignee_id?:number|null;clue_public?:number;urgency?:number;id:number;project_id:number;kind:CrossKind;parent_id:number|null;main_id:number|null;package_type:string;product_category_id:number|null;copied_from_id:number|null;cover_file_id:number|null;title:string;body_json:string;creator_id:number;maker_id:number;status:string;revision:number;version_number:number;lifecycle?:string;previous_lifecycle?:string;is_sampled?:number;source_locked?:number};
 export type CrossFile={id:number;record_id:number;storage_path:string;file_name:string;mime_type:string;file_size:number;uploader_id:number;active:number;position:number;shared_json:string;cover_path:string|null};
 export const crossNames={clue:'线索',mother:'母版',package:'产品包'};
 export function crossRow(db:DatabaseSync,id:number,project:number){return db.prepare('SELECT * FROM cross_records WHERE id=? AND project_id=?').get(id,project) as CrossRecord|undefined;}
 export function crossEvent(db:DatabaseSync,row:CrossRecord,actor:number,action:string,details:unknown={}){db.prepare('INSERT INTO cross_events(record_id,actor_id,action,version_number,details_json) VALUES(?,?,?,?,?)').run(row.id,actor,action,row.version_number,JSON.stringify(details));db.prepare('INSERT INTO audit_logs(user_id,action,object_type,object_id,details_json) VALUES(?,?,?,?,?)').run(actor,'cross.'+action,'cross_record',String(row.id),JSON.stringify({projectId:row.project_id,kind:row.kind,version:row.version_number,details}));}
 export function crossMember(db:DatabaseSync,id:number,project:number){return Boolean(db.prepare("SELECT id FROM users WHERE id=? AND status='active'").get(id))&&maySeeProject(db,{id},project);}
 export function isDocument(db:DatabaseSync,row:CrossRecord){return row.kind==='package'&&db.prepare('SELECT media_type FROM cross_business_types WHERE project_id=? AND code=?').get(row.project_id,row.package_type)?.media_type==='document';}
-// Record ownership is fixed at creation; page permissions are checked by requireCross.
+// Clue responsibility may transfer; other records retain their creator scope.
 // Leader scope is read from this record's project, never from a role or another project.
 export function recordVisible(db:DatabaseSync,row:CrossRecord,user:{id:number}){
  if(!maySeeProject(db,user,row.project_id))return false;
- return isProjectMaster(db,user)||row.creator_id===user.id||Boolean(db.prepare('SELECT 1 FROM project_leaders WHERE project_id=? AND user_id=?').get(row.project_id,user.id));
+ return isProjectMaster(db,user)||(row.kind==='clue'?(row.clue_public===1||row.assignee_id===user.id):row.creator_id===user.id)||Boolean(db.prepare('SELECT 1 FROM project_leaders WHERE project_id=? AND user_id=?').get(row.project_id,user.id));
 }
 export function fileVisible(db:DatabaseSync,file:CrossFile,user:{id:number}){
  const row=db.prepare('SELECT * FROM cross_records WHERE id=?').get(file.record_id) as CrossRecord|undefined;

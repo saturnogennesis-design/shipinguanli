@@ -21,7 +21,7 @@ export async function GET(request:Request){
   await syncProductMasterCatalog();
   const where=and(eq(contents.accountId,auth.user.projectId!),company?isNotNull(contents.deletedAt):and(isNotNull(contents.deletedAt),eq(contents.uploaderUserId,auth.user.id)));
   const rows=await getDb().select({id:contents.id,code:contents.code,title:contents.title,contentType:contents.contentType,reviewStatus:contents.reviewStatus,trashPreviousStatus:contents.trashPreviousStatus,latestVersionNumber:contents.latestVersionNumber,deletedAt:contents.deletedAt,createdAt:contents.createdAt,uploaderUserId:users.id,contentColor:users.contentColor,uploaderName:users.displayName,productName:sql<string|null>`coalesce(${productMasters.name},${products.name})`,accountName:shortVideoAccounts.name}).from(contents).innerJoin(users,eq(contents.uploaderUserId,users.id)).leftJoin(products,eq(contents.productId,products.id)).leftJoin(productMasters,eq(contents.productMasterId,productMasters.id)).leftJoin(shortVideoAccounts,eq(contents.accountId,shortVideoAccounts.id)).where(where).orderBy(desc(contents.deletedAt)).limit(1000);
-  return Response.json({contents:rows,canPurge:hasPermission(auth.user,"content.trash_purge")});
+  return Response.json({contents:rows,canPurge:auth.user.roleCode==="super_admin"&&hasPermission(auth.user,"content.trash_purge")});
 }
 
 export async function POST(request:Request){
@@ -39,7 +39,7 @@ export async function POST(request:Request){
 
 export async function DELETE(request:Request){
   const auth=await requireUser(request);if(!auth.user)return auth.response;
-  if(!hasPermission(auth.user,"content.trash_purge"))return Response.json({error:"没有永久删除文件的权限"},{status:403});
+  if(auth.user.roleCode!=="super_admin"||!hasPermission(auth.user,"content.trash_purge"))return Response.json({error:"没有永久删除文件的权限"},{status:403});
   const payload=await request.json() as {codes?:unknown};const codes=codesFrom(payload.codes);if(!codes.length)return Response.json({error:"请选择需要永久删除的内容"},{status:400});
   const selected=await getDb().select({id:contents.id,code:contents.code}).from(contents).where(and(inArray(contents.code,codes),isNotNull(contents.deletedAt)));if(!selected.length)return Response.json({error:"所选内容不在回收站"},{status:404});
   if(selected.some(item=>!getLocalDatabase().prepare(`SELECT 1 FROM contents c WHERE c.id=? AND c.account_id=? AND ${contentMutationScopeSql(auth.user)}`).get(item.id,auth.user.projectId!)))return Response.json({error:'无权永久删除所选内容'},{status:403});
@@ -71,6 +71,7 @@ export async function DELETE(request:Request){
   if(versionIds.length)mutations.push(db.delete(contentVersionFiles).where(inArray(contentVersionFiles.versionId,versionIds)));
   mutations.push(db.delete(contentVersions).where(inArray(contentVersions.contentId,contentIds)),db.delete(contents).where(inArray(contents.id,contentIds)));
   try{await db.batch(mutations as never);}catch(error){await store.restoreQuarantine(quarantined);await writeAudit(request,{userId:auth.user.id,action:"content.trash_purge_failed",objectType:"content",objectId:codes.join(","),details:{phase:"database",error:String(error)}});return Response.json({error:"数据库删除失败，文件已恢复，记录仍在回收站。"},{status:500});}
+  for(const item of selected)getLocalDatabase().prepare("INSERT OR IGNORE INTO deleted_business_records(project_id,kind,record_key,actor_id) VALUES(?,'content',?,?)").run(auth.user.projectId!,item.code,auth.user.id);
   let cleanupPending=false;try{await store.deleteQuarantine(quarantined);}catch(error){cleanupPending=true;await writeAudit(request,{userId:auth.user.id,action:"content.trash_quarantine_cleanup_pending",objectType:"content",objectId:codes.join(","),details:{error:String(error),quarantineCount:quarantined.length}});}
   await writeAudit(request,{userId:auth.user.id,action:"content.trash_purge",objectType:"content",objectId:selected.map((item)=>item.code).join(","),details:{count:selected.length,fileCount:mediaKeys.length}});
   return Response.json({ok:true,count:selected.length,cleanupPending});

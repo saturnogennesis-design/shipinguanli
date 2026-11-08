@@ -1,3 +1,4 @@
+import {crossLeader} from './cross-assignment';
 import {isProjectMaster} from './project-visibility';
 import {getLocalDatabase} from '@/db';
 import {requireUser,hasPermission,type AuthUser} from './server-auth';
@@ -5,7 +6,7 @@ import {visibleProjectIds} from './project-access';
 export function crossAccess(user:AuthUser){
  const admin=isProjectMaster(getLocalDatabase(),user);
  const canAssign=admin||hasPermission(user,'cross.assign');
- return {admin,canAssign,canEdit:admin||hasPermission(user,'cross.edit'),canArchive:admin||hasPermission(user,'cross.archive'),canDelete:admin||hasPermission(user,'cross.delete'),canReview:admin||hasPermission(user,'cross.review'),canCreate:admin||hasPermission(user,'cross.create'),canView:admin||hasPermission(user,'cross.view'),canDownload:admin||hasPermission(user,'cross.download')};
+ return {admin,canPurge:user.roleCode==='super_admin',canPrioritize:crossLeader(getLocalDatabase(),user,user.projectId!),canAllocate:crossLeader(getLocalDatabase(),user,user.projectId!),canAssign,canEdit:admin||hasPermission(user,'cross.edit'),canArchive:admin||hasPermission(user,'cross.archive'),canDelete:admin||hasPermission(user,'cross.delete'),canReview:admin||hasPermission(user,'cross.review'),canCreate:admin||hasPermission(user,'cross.create'),canView:admin||hasPermission(user,'cross.view'),canDownload:admin||hasPermission(user,'cross.download')};
 }
 export async function requireCross(request:Request){
  const auth=await requireUser(request);if(!auth.user)return {response:auth.response};
