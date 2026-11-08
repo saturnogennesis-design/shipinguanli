@@ -1,6 +1,6 @@
-# Mac员工端 1.2.0
+# Mac员工端 1.3.0
 
-主机先更新V3.27.0。Apple Silicon（M1／M2／M3／M4等）选arm64包，Intel Mac选x64包；要求macOS 13.5或更新。完整解压保留runtime目录，首次运行InstallEmployee.command，升级运行UpdateEmployee.command。自带官方Node.js 24 LTS，无需另装Node.js、Homebrew或下载依赖。旧1.0版须用本完整包升级一次。
+主机先更新V3.28.0。Apple Silicon（M1／M2／M3／M4等）选arm64包，Intel Mac选x64包；要求macOS 13.5或更新。完整解压保留runtime目录，首次运行InstallEmployee.command，升级运行UpdateEmployee.command。自带官方Node.js 24 LTS，无需另装Node.js、Homebrew或下载依赖。旧1.0版须用本完整包升级一次。
 
 安装在当前用户的Library/Application Support/OrbitEmployee，程序位于个人Applications/Orbit Employee.app，后台由当前用户LaunchAgent启动。更新保留data及待同步文件。没有Apple签名和公证；如系统拦截，请按macOS标准“隐私与安全性／仍要打开”确认信任，不要关闭Gatekeeper。首次需联网访问主机并正常登录完成初始缓存。
 
@@ -15,3 +15,5 @@
 已验证双芯片运行环境校验、安装目录与脚本生成、包内执行权限和Linux上的离线业务流程；未在真实Mac运行安装或签名公证。先在一台匹配芯片的Mac验收，再分发。
 
 1.2每天首次成功连接自动核对主机回执及已完成上传文件是否缺失；本机副本仍在时补传原字节，不重建资料或再次提交审核。无法修复时提示恢复备份。超过1天待上传会提示积压；这不代替备份，也不承诺双方未同时在线时完成传输。主机3.27的分配移交、紧急程度、永久删除需要联网并校验当前版本。
+
+1.3支持进入业务页面主动读取主机最新数据；主机不可达则用缓存，权限拒绝不显示旧缓存。已同步完成的本机编号打开最新主机记录，返回来源保留筛选和位置，不覆盖未保存编辑。本次需配合主机3.28页面更新。

@@ -13,7 +13,7 @@ node=(runtime/'node').read_bytes();assert hashlib.sha256(node).hexdigest()==info
 assert node[:4]==b'\xcf\xfa\xed\xfe' and int.from_bytes(node[4:8],'little')=={'arm64':0x100000c,'x64':0x1000007}[arch]
 files=['InstallEmployee.command','UpdateEmployee.command','install-mac.mjs','start.mjs','server.mjs','store.mjs','updater.mjs','original-system.mjs','ui/bridge.js','ui/connection.html','README-Mac.md','ui/index.html','ui/app.js','ui/style.css']
 folder=f'OrbitEmployee-Mac-{arch}-v{version}';out=root/'installers'/(folder+'.zip')
-manifest={'version':version,'sourceCommit':commit,'packageKind':'mac-employee-client','requires':{'macOS':'>=13.5','server':'>=3.27.0','platform':'darwin-'+arch,'bundledNode':info['version'],'networkForRuntime':False},'files':[]}
+manifest={'version':version,'sourceCommit':commit,'packageKind':'mac-employee-client','requires':{'macOS':'>=13.5','server':'>=3.28.0','platform':'darwin-'+arch,'bundledNode':info['version'],'networkForRuntime':False},'files':[]}
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
  def add(name,data,executable=False):
   zi=zipfile.ZipInfo(folder+'/'+name);zi.create_system=3;zi.external_attr=(stat.S_IFREG|(0o755 if executable else 0o644))<<16;zi.compress_type=zipfile.ZIP_DEFLATED;z.writestr(zi,data);manifest['files'].append({'path':name,'sha256':hashlib.sha256(data).hexdigest(),'executable':executable})

@@ -18,7 +18,7 @@ assert (runtime/'node.exe').read_bytes()[:2]==b'MZ'
 files=['InstallEmployee.cmd','UpdateEmployee.cmd','install.ps1','start.mjs','server.mjs','store.mjs','updater.mjs','original-system.mjs','ui/bridge.js','ui/connection.html','README.md','ui/index.html','ui/app.js','ui/style.css']
 folder='OrbitEmployee-v'+version
 out=root/'installers'/f'{folder}.zip'
-manifest={'version':version,'sourceCommit':commit,'packageKind':'windows-employee-client','requires':{'node':'>=22.13.0','server':'>=3.27.0','bundledNode':runtime_info['version'],'platform':'windows-x64','networkForRuntime':False},'files':[]}
+manifest={'version':version,'sourceCommit':commit,'packageKind':'windows-employee-client','requires':{'node':'>=22.13.0','server':'>=3.28.0','bundledNode':runtime_info['version'],'platform':'windows-x64','networkForRuntime':False},'files':[]}
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
  for name in files:
   path='employee-client/'+name

@@ -9,6 +9,7 @@ export function installProjectFetch(){
   const url=new URL(input instanceof Request?input.url:String(input),window.location.href);
   if(url.origin!==window.location.origin||!roots.has(url.pathname.split('/')[2]))return original(input,init);
   const project=readBusinessContext();const headers=new Headers(init?.headers??(input instanceof Request?input.headers:undefined));
+  const method=(init?.method??(input instanceof Request?input.method:'GET')).toUpperCase();if(method==='GET'&&init?.cache==='no-store')headers.set('x-orbit-fresh','navigation');
   if(project)headers.set('x-orbit-project-id',String(project.accountId));else headers.delete('x-orbit-project-id');
   return original(input,{...init,headers}).then(async response=>{if(response.status===403&&project){const data=await response.clone().json().catch(()=>({}));if(/项目/.test(data.error??'')&&readBusinessContext()?.accountId===project.accountId)window.dispatchEvent(new Event('orbit-project-access-revoked'));}return response;});
  };

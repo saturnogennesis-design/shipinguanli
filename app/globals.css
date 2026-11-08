@@ -841,3 +841,89 @@ button,input,select,textarea{font-size:14px!important}
 
 /* Business record controls reuse the existing compact buttons and status palette. */
 .cross-management-actions{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}.cross-urgency{display:inline-flex;white-space:nowrap;vertical-align:middle;border-radius:6px;padding:3px 7px;margin:3px 0 3px 5px;font-size:12px;font-weight:600;line-height:1.4}.cross-urgency.priority{background:#fff7ed;color:#9a3412}.cross-urgency.urgent{background:#fef2f2;color:#b42318}.business-purge-button{color:#b42318!important;border-color:#fecdca!important;background:#fff!important}
+
+/* Return controls stay below the measured system top bar, including wrapped/mobile headers. */
+.project-workspace{--project-topbar-height:88px}
+.project-content :is(.cross-page-heading,.drilldown-header,.review-session-header){position:sticky;top:var(--project-topbar-height);z-index:15;background:#f3f5f8;padding-top:12px;padding-bottom:12px;border-bottom:1px solid #e1e7ef;box-shadow:0 -12px 0 #f3f5f8}
+.project-content .unified-detail{overflow:visible}
+.project-content .unified-detail-head{position:sticky;top:var(--project-topbar-height);z-index:15;background:#fff;border-radius:12px 12px 0 0;box-shadow:0 3px 10px #24355108}
+.project-content .cross-back{position:sticky;top:calc(var(--project-topbar-height) + 8px);z-index:15;background:#fff;box-shadow:0 3px 12px #24355112}
+.project-workspace .modal-backdrop :is(.cross-page-heading,.drilldown-header,.review-session-header,.unified-detail-head){position:relative;top:auto;box-shadow:none}
+.cross-page-heading .cross-heading-title>h2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Clues: compact ownership-first records, shared hierarchy across list and cards. */
+.clue-workspace .cross-library-heading{margin-bottom:22px}
+.clue-workspace .cross-library-heading .module-header h2{font-size:23px;letter-spacing:-.4px}
+.clue-workspace .cross-library-heading .module-header p{max-width:620px;color:#7a8799}
+.clue-workspace .cross-library-viewbar{flex-wrap:wrap;align-items:center;min-height:74px;padding:0 20px;gap:16px}
+.clue-scope-tabs{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:12px 0}
+.clue-scope-tabs>button{display:flex;gap:8px;align-items:center;border:0;background:transparent;color:#738095;border-radius:8px;padding:10px 13px;font-size:13px;white-space:nowrap;cursor:pointer}
+.clue-scope-tabs>button[aria-selected=true]{background:#edf2ff;color:#3154c5;font-weight:650}
+.clue-scope-tabs>button>span{font-size:11px;min-width:18px;text-align:center;color:#8995a7;font-variant-numeric:tabular-nums}
+.clue-scope-tabs>button[aria-selected=true]>span{color:#5573cb}
+.clue-workspace .cross-filter-area{background:#fafbfd;padding:16px 20px 12px}
+.clue-workspace .cross-filter-top{align-items:center;flex-wrap:wrap;gap:12px}
+.clue-workspace .cross-filter-area .cross-filters{gap:10px}
+.clue-workspace .cross-filter-area .cross-filters input:first-child{flex-basis:230px;max-width:270px}
+.clue-workspace .cross-view-switch button{min-height:34px;background:#fff}
+.clue-workspace .cross-filter-area>details{color:#7c889a;font-size:12px}
+.project-workspace .clue-table{table-layout:fixed;min-width:970px;border-collapse:collapse}
+.clue-col-main{width:33%}.clue-col-owner{width:17%}.clue-col-status{width:9%}.clue-col-related{width:10%}.clue-col-updated{width:16%}.clue-col-actions{width:15%}
+.clue-table thead th{font-size:12px;font-weight:500;color:#8390a3;padding:14px 18px}
+.clue-table .clue-record-row>td{padding:18px;border-bottom:1px solid #eef1f6}
+.clue-record-row{cursor:pointer;transition:background .15s}.clue-record-row:hover{background:#fafcff}.clue-record-row:focus-visible{outline:2px solid #9cb2f5;outline-offset:-2px;background:#f6f8ff}
+.clue-main-cell{display:flex;gap:14px;align-items:center;min-width:0}
+.clue-main-cell>.cross-cover{width:56px;height:56px;border-radius:10px;flex-shrink:0}
+.clue-main-copy{min-width:0;flex:1}
+.clue-title-line{display:flex;align-items:center;gap:7px;min-width:0;margin-bottom:7px;flex-wrap:wrap}
+.clue-title-line>strong{font-size:14px;font-weight:650;color:#253449;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.clue-title-line .cross-urgency{flex:none;margin:0;font-size:10px;padding:2px 6px}
+.clue-keywords{display:flex;gap:5px;align-items:center;min-width:0;overflow:hidden;flex-wrap:nowrap}
+.clue-keywords>span{display:inline-block;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.5;padding:2px 6px;border-radius:4px;background:#f1f4f8;color:#7c899c}
+.clue-keywords>small{color:#97a1af;font-size:11px;white-space:nowrap}
+.clue-uploaded-by{display:block;margin-top:7px;font-size:11px;color:#98a2b1}
+.clue-owner{display:flex;gap:9px;align-items:center;min-width:0}
+.clue-owner-avatar{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:50%;background:#edf1fb;color:#647aa8;font-size:12px}
+.clue-owner>span:last-child{min-width:0}.clue-owner strong{display:block;font-size:12px;font-weight:550;color:#425269;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.clue-owner small{display:block;font-size:10px;color:#98a2b1;margin-top:4px}
+.clue-owner.unassigned .clue-owner-avatar{background:#f1f5f8;color:#97a3b3}.clue-owner.unassigned strong{color:#7b899d}
+.clue-status{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:11px;white-space:nowrap;color:#75839a;background:#f2f5f9;border-radius:6px;padding:5px 8px;font-weight:500}
+.clue-status.approved{color:#3e7a66;background:#edf7f2}.clue-status.rejected{color:#aa6557;background:#fff2ed}.clue-status.pending{color:#987840;background:#fcf6e9}
+.clue-status small{font-size:10px;color:#987840}
+.clue-related-link{font-size:12px;color:#5b73a5;border:0!important;background:transparent!important;cursor:pointer;padding:4px 0;white-space:nowrap;text-decoration:none}
+.clue-related-link:hover{color:#3154df}.clue-related-link.muted{color:#a0aaba}
+.clue-updated{display:block;font-size:11px;color:#8b97a8;line-height:1.8;font-variant-numeric:tabular-nums;max-width:116px}
+.clue-row-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap}
+.clue-row-actions button,.clue-card-actions button{font-size:12px;padding:6px 9px;white-space:nowrap}
+.clue-detail-action{color:#4d67a0;border-color:#e0e6f1!important;background:#fff!important}
+.clue-more-button{color:#7d899a;border-color:transparent!important;background:transparent!important;padding-inline:3px!important}.clue-more-button:hover{background:#f2f5fa!important}.clue-more-button>span{font-size:17px;margin-left:3px;line-height:.6}
+.communication-dialog:has(.clue-more-dialog){width:min(460px,100%)}
+.clue-more-dialog>p{font-size:13px;color:#7c899a;margin:0 0 18px;overflow-wrap:anywhere}
+.clue-menu-section{padding:14px 0;border-top:1px solid #edf0f5;display:flex;flex-direction:column;gap:8px}.clue-menu-section>h3{font-size:11px;color:#98a2b2;font-weight:500;margin:0 0 4px}.clue-menu-section:has(.cross-management-actions:empty){display:none}
+.clue-menu-section>.cross-management-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px}.clue-menu-section>button,.clue-menu-section>.cross-management-actions>button{width:100%;text-align:left;padding:10px 12px!important;border:1px solid #e5eaf2;border-radius:8px;background:#fff;color:#52637b;font-size:13px}
+.clue-menu-danger{border-top:1px solid #edf0f5;padding-top:14px}.clue-menu-danger:has(>span:empty){display:none}.clue-menu-danger>span>button{width:100%;text-align:left;padding:10px 12px}
+.clue-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(270px,100%),1fr));gap:18px;padding:20px}
+.clue-card{min-width:0;overflow:visible;border:1px solid #e2e8f1;border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column}
+.clue-card:hover{border-color:#c1cee5;box-shadow:0 6px 20px #273b6209}
+.clue-card-open{border:0!important;background:transparent!important;padding:0!important;min-width:0;text-align:left;width:100%;cursor:pointer;flex:1;border-radius:12px 12px 0 0;overflow:hidden}
+.clue-card-open:focus-visible{outline:2px solid #91a9e8;outline-offset:2px}
+.clue-card-cover{position:relative;height:154px;background:#f4f6fa;overflow:hidden}
+.clue-card-cover>.cross-cover{width:100%;height:100%;border-radius:0;background:#f4f6fa}
+.clue-card-cover>.cross-cover>span[aria-hidden]{font-size:28px;color:#c2cbd9;margin-top:-22px}
+.clue-cover-caption{position:absolute;top:calc(50% + 15px);left:0;right:0;text-align:center;font-size:11px;color:#a2adbc}
+.clue-card-indicators{position:absolute;left:12px;right:12px;top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}.clue-card-indicators .clue-status{background:#fff;box-shadow:0 2px 6px #192c480a}.clue-card-indicators .cross-urgency{margin:0;box-shadow:0 2px 6px #192c480a}
+.clue-file-count{position:absolute;bottom:10px;right:10px;font-size:10px;background:#ffffffed;color:#8b97aa;padding:3px 7px;border-radius:5px}
+.clue-card-body{padding:16px 16px 14px}.clue-card-body>h3{margin:0 0 10px;font-size:15px;line-height:1.5;color:#2e3f56;font-weight:650;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:23px;overflow-wrap:anywhere}
+.clue-source{font-size:11px;color:#96a2b3;line-height:1.6;margin:12px 0 14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clue-card-meta{padding:11px 16px;border-top:1px solid #eff2f7;display:flex;align-items:center;justify-content:space-between;gap:8px}.clue-card-meta time{font-size:10px;color:#9aa5b4;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clue-card-actions{padding:0 16px 12px;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:900px){.clue-workspace .cross-library-viewbar{padding:0 14px;gap:8px;align-items:flex-start}.clue-scope-tabs{gap:2px}.clue-scope-tabs>button{padding:9px 10px;font-size:12px}.clue-workspace .cross-filter-top{align-items:stretch}.clue-workspace .cross-view-tools{justify-content:space-between}.clue-card-grid{padding:14px;gap:14px}.clue-workspace .cross-filter-area{padding:14px}.clue-workspace .cross-filter-area .cross-filters input:first-child{max-width:none}}
+@media(max-width:600px){.clue-workspace .cross-library-viewbar{flex-wrap:wrap;padding:8px 12px}.clue-workspace .cross-secondary-view{margin-left:auto;margin-bottom:8px}.clue-scope-tabs{width:100%;display:grid;grid-template-columns:1fr 1fr;padding:0}.clue-scope-tabs>button{justify-content:center}.clue-card-grid{grid-template-columns:minmax(0,1fr)}.clue-workspace .cross-filter-top .cross-filters>*{min-width:0;flex:1 1 140px}.clue-workspace .cross-view-tools{width:100%;display:flex}.clue-card-cover{height:170px}}
+
+.clue-row-actions>.cross-management-actions>button,.clue-card-actions>.cross-management-actions>button{color:#3154bd;border-color:#dce5fc;background:#f4f7ff}
+.clue-workspace .clue-scope-tabs>button{border:1px solid transparent!important;background:transparent!important;color:#77859a}
+.clue-workspace .clue-scope-tabs>button[aria-selected=true]{background:#edf2ff!important;border-color:#e5ebfc!important;color:#3154c5!important}
+.clue-workspace .clue-card-open{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start}
+.clue-card-cover{flex-shrink:0}.clue-card-body{flex:1;display:flex;flex-direction:column;align-items:stretch}.clue-card-body>h3{min-height:45px}.clue-card-body .clue-owner{margin-top:auto}
+.clue-card-meta time{font-size:11px}.clue-table .clue-record-row>td{padding-block:16px}
+.project-workspace .modal-backdrop :is(.cross-page-heading,.drilldown-header,.review-session-header,.unified-detail-head){position:sticky;top:0;z-index:5;background:#fff;box-shadow:0 2px 8px #24355108}

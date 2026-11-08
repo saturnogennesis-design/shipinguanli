@@ -805,7 +805,7 @@ export function ContentDetailPanel({
         <div className="unified-detail-head">
           <div className="detail-title-wrap">
             {onBack && (
-              <button className="back-square" onClick={onBack}>
+              <button className="back-square" aria-label="返回上一级" onClick={onBack}>
                 ←
               </button>
             )}
@@ -1141,7 +1141,7 @@ function ContentRecycleBin({
   return (
     <>
       <div className="drilldown-header recycle-bin-header">
-        <button onClick={onBack}>←</button>
+        <button aria-label="返回上一级" onClick={onBack}>←</button>
         <div>
           <small>内容池 / 回收站</small>
           <h2>内容回收站</h2>
@@ -5620,7 +5620,7 @@ function VersionCenterLive({
     return (
       <>
         <div className="drilldown-header">
-          <button onClick={() => setDetailCode("")}>←</button>
+          <button aria-label="返回上一级" onClick={() => setDetailCode("")}>←</button>
           <div>
             <small>版本管理 / 内容详情</small>
             <h2>{detail.title}</h2>
@@ -5967,7 +5967,7 @@ function DrilldownContentList({
   return (
     <>
       <div className="drilldown-header">
-        <button onClick={onBack}>←</button>
+        <button aria-label="返回上一级" onClick={onBack}>←</button>
         <div>
           <small>当前筛选条件</small>
           <h2>{title}</h2>
