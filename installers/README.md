@@ -1,3 +1,17 @@
+# Windows员工端1.3.2安装修复（测试版）
+
+- [Windows员工端1.3.2完整安装／更新包](OrbitEmployee-v1.3.2.zip?raw=1) · [SHA-256](OrbitEmployee-v1.3.2.zip.sha256)
+
+修复1.3.1覆盖旧app/README.md等文件时访问被拒绝的问题。校验清单及完整程序后写入全新programs版本目录，写入校验通过后才停止旧员工端、切换桌面与自启动入口。保留旧app、运行环境、data和待同步队列；修复仅限员工端自身启动入口文件权限，不递归改数据目录权限。若新目录也被系统安全策略拦截，仍会提示失败并保留已有资料。
+
+C盘或D盘等当前账号可读写的本地目录都可解压；必须完整解压，保留runtime与employee-manifest.json。解压盘符不改变数据位置，仍为当前账号的LocalAppData/OrbitEmployee/data，通常在C盘，需有足够空间。使用原Windows账号运行UpdateEmployee.cmd，首次安装运行InstallEmployee.cmd。无需更换账号、管理员运行或另装Node.js。主机已为3.28.0及Mac1.3.0均无需再次更新。备注红点本次未实施。
+
+源码：`6e51888f8a22b5209297b55cca6a9e4840c3830a`。35项检查通过，其中3项为临时目录中的程序安装布局测试，32项为离线／同步回归；PowerShell仅静态语法检查。ZIP CRC、逐文件SHA-256及运行环境哈希校验通过。未运行Windows安装脚本，尚需在报错Windows电脑上实机验收。未部署、未合并默认分支。
+
+SHA-256：`c984dc4774c319796fa1a2344f477d818c4f39da33704e136eeccf71232eec38`。
+
+---
+
 # Windows员工端1.3.1安装修复（测试版）
 
 - [Windows员工端1.3.1完整安装／更新包](OrbitEmployee-v1.3.1.zip?raw=1) · [SHA-256](OrbitEmployee-v1.3.1.zip.sha256)
