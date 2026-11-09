@@ -1,3 +1,4 @@
+import {deletionBlockInfo} from '@/lib/deletion-blockers';
 import {createHash,randomBytes} from 'node:crypto';
 import {bindProjectRequest} from '@/lib/project-access';
 import {requireUser,hasPermission,getSessionTokenHash,userForSessionHash,authorizeInternalRequest} from '@/lib/server-auth';
@@ -42,7 +43,7 @@ export async function POST(request:Request){
     const deleted=await permanentlyDelete(db,{kind,id:Number(row.id),project:user.projectId!,actor:user.id,revision,onDeleted:()=>saveBatchReceipt(db,user,body.requestKey,kind,Number(row.id),batchSignature(action,options),{...result,cleanupPending:true})});
     db.prepare('UPDATE business_batch_receipts SET result_json=? WHERE user_id=? AND project_id=? AND request_key=? AND kind=? AND record_id=?').run(JSON.stringify({...result,cleanupPending:deleted.cleanupPending}),user.id,user.projectId!,body.requestKey,kind,Number(row.id));results.push({...result,cleanupPending:deleted.cleanupPending});
    }else{const result=runBatchItem(db,user,kind,key,action,options,revision,body.mode==='preview',body.requestKey);results.push({...result,key,ok:true});}
-  }catch(error){results.push({key,ok:false,error:(error as Error).message});}
+  }catch(error){let blockers;try{if(action==='purge'){const r=batchRecord(db,user,kind,key);blockers=deletionBlockInfo(db,user,kind,Number(r.id));}}catch{/* Never expose references of an inaccessible record. */}results.push({key,ok:false,error:(error as Error).message,...(blockers?.blocked?{blockers}:{})});}
  }
  return Response.json({results,success:results.filter(r=>r.ok).length,failed:results.filter(r=>!r.ok).length});
 }

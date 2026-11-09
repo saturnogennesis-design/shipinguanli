@@ -1,14 +1,17 @@
 "use client";
+import {crossMedia} from './cross-media';
 import {useState} from 'react';
 import {createPortal} from 'react-dom';
 import {ThumbnailImage} from './thumbnail-image';
 import {CenterDialog} from './communication-center';
 import {states,type Row,type Person,type Category} from './cross-types';
-export function crossMedia(id:number,project:number,thumb=false){return `/api/cross-records/files/${id}?projectId=${project}${thumb?'&thumb=1':''}`;}
-export function CrossThumb({row,project,hover=false}:{row:Row;project:number;hover?:boolean}){
+export {crossMedia} from './cross-media';
+export function CrossThumb({row,project,hover=false,onPreview}:{row:Row;project:number;hover?:boolean;onPreview?:()=>void}){
  const [point,setPoint]=useState<{left:number;top:number}|null>(null);
  const src=row.coverId?crossMedia(row.coverId,project,true):'',video=row.coverMime?.startsWith('video/')&&row.coverId?crossMedia(row.coverId,project):undefined;
- return <span className="cross-cover" onMouseEnter={event=>{if(hover&&row.coverId){const box=event.currentTarget.getBoundingClientRect();setPoint({left:Math.min(window.innerWidth-260,box.right+10),top:Math.max(8,Math.min(window.innerHeight-250,box.top))});}}} onMouseLeave={()=>setPoint(null)}>{src?<ThumbnailImage src={src} fallbackVideo={video} alt={row.title}/>:<span aria-hidden="true">{row.package_type==='document'?'▤':'▧'}</span>}{point?createPortal(<div className="cross-hover-preview" style={point}><ThumbnailImage src={src} fallbackVideo={video} alt={row.title}/></div>,document.body):null}</span>;
+ const enter=(event:React.MouseEvent<HTMLElement>)=>{if(hover&&row.coverId){const box=event.currentTarget.getBoundingClientRect();setPoint({left:Math.min(window.innerWidth-260,box.right+10),top:Math.max(8,Math.min(window.innerHeight-250,box.top))});}};
+ const content=<>{src?<ThumbnailImage src={src} fallbackVideo={video} alt={row.title}/>:<span aria-hidden="true">{row.package_type==='document'?'▤':'▧'}</span>}{point?createPortal(<div className="cross-hover-preview" style={point}><ThumbnailImage src={src} fallbackVideo={video} alt={row.title}/></div>,document.body):null}</>;
+ return onPreview?<button type="button" className="cross-cover cross-cover-button" aria-label={'预览封面：'+row.title} onMouseEnter={enter} onMouseLeave={()=>setPoint(null)} onClick={e=>{e.stopPropagation();setPoint(null);onPreview();}}>{content}<span className="cross-cover-zoom">预览</span></button>:<span className="cross-cover" onMouseEnter={enter} onMouseLeave={()=>setPoint(null)}>{content}</span>;
 }
 export type Filters={assignee?:string;urgency?:string;parentId:string;mainId:string;q:string;keyword:string;person:string;status:string;category:string;type:string;source:string;reviewer:string;dateField:string;from:string;to:string};
 export const defaultFilters:Filters={assignee:'',urgency:'',parentId:'',mainId:'',q:'',keyword:'',person:'',status:'',category:'',type:'',source:'',reviewer:'',dateField:'created_at',from:'',to:''};
