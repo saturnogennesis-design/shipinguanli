@@ -976,3 +976,32 @@ button,input,select,textarea{font-size:14px!important}
 .cross-review-previews{display:flex;gap:10px;overflow-x:auto;padding:4px 0 16px;max-width:100%}.cross-review-previews>button{width:72px;height:72px;flex:none;padding:4px;border:1px solid #e0e6ef;background:#f7f9fc;border-radius:8px;cursor:zoom-in}.cross-review-previews .thumbnail-image{width:100%;height:100%}.cross-review-previews img{object-fit:contain}
 .cross-workspace .cross-card .cross-card-info{border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important;padding:0}.cross-gallery img.cross-gallery-original{width:100%;height:65dvh}
 @media(max-width:600px){.cross-gallery img.cross-gallery-original{height:58dvh}}
+
+/* Library pages use the available workspace; forms keep their own field limits. */
+.project-workspace>.project-content{width:100%;max-width:none;margin-inline:0;align-self:stretch}
+.project-content>.module-area,.project-content>.content-area,.project-content>.cross-workspace,.project-content>.cross-detail-page{width:100%;max-width:none;min-width:0}
+.project-workspace>.project-content:has(>.cross-workspace),.project-workspace>.project-content:has(>.cross-detail-page){max-width:none;width:100%}
+.cross-workspace .cross-card-grid,.cross-workspace .clue-card-grid{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:16px;padding:16px;align-items:stretch}
+.cross-workspace .clue-card{min-height:0;overflow:hidden;border:1px solid #e1e7f0;border-radius:12px;box-shadow:0 2px 6px #22335504}
+.cross-workspace .clue-card-open{flex:1;border-radius:0;overflow:visible}
+.cross-workspace button.clue-card-cover,.cross-workspace button.clue-card-body{display:block;border:0!important;border-radius:0!important;box-shadow:none!important;width:100%;margin:0;background:transparent!important;text-align:left}
+.cross-workspace button.clue-card-cover{height:190px;min-height:190px;padding:0!important;overflow:hidden;background:#f5f7fa!important;cursor:zoom-in}
+.cross-workspace button.clue-card-body{padding:14px 16px!important;flex:1;cursor:pointer;color:#26364d}
+.cross-workspace .clue-card-body>h3{min-height:0;margin:0 0 8px;font-size:15px;line-height:1.5;-webkit-line-clamp:2}
+.cross-workspace .clue-card-body .clue-keywords{min-height:24px;margin-bottom:8px}
+.cross-workspace .clue-card-body .clue-source{margin:0 0 12px;font-size:11px;color:#8692a5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cross-workspace .clue-card-body .clue-owner{margin:0;gap:8px}
+.cross-workspace .clue-card-body .clue-owner small{display:inline;margin-left:7px;font-size:11px}
+.cross-workspace .clue-card-body .clue-owner strong{display:inline;font-size:12px}
+.cross-workspace .clue-card-body .clue-owner-avatar{width:28px;height:28px;font-size:12px}
+.cross-workspace .clue-card-meta{padding:9px 16px;border-top:1px solid #eef1f6;gap:8px;flex-wrap:wrap;background:#fbfcfe}
+.cross-workspace .clue-card-actions{padding:8px 12px;gap:6px;border-top:1px solid #eef1f6;background:#fff;min-height:48px}
+.cross-workspace .clue-card-indicators{top:12px;right:12px}
+.cross-workspace .clue-card-cover:focus-visible,.cross-workspace .clue-card-body:focus-visible{outline:2px solid #5579df;outline-offset:-3px}
+.cross-workspace .cross-card{min-height:0}
+.cross-workspace .cross-card-main{padding:0;gap:0}
+.cross-workspace .cross-card-main>.cross-cover{height:190px;min-height:190px;border:0;border-radius:0;padding:0;background:#f5f7fa}
+.cross-workspace .cross-card .cross-card-info{padding:14px 16px;gap:8px;min-height:104px;flex:1}
+.cross-workspace .cross-card>.cross-small-actions{padding:8px 12px;min-height:48px}
+@media(max-width:600px){.cross-workspace .cross-card-grid,.cross-workspace .clue-card-grid{padding:12px;gap:12px;grid-template-columns:minmax(0,1fr)}}
+.cross-workspace .cross-card-main>button.cross-cover{padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important}
