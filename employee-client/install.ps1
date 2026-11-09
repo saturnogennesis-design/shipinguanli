@@ -1,10 +1,11 @@
 param([switch]$UpdateOnly)
 $ErrorActionPreference='Stop'
 $target=Join-Path $env:LOCALAPPDATA 'OrbitEmployee'
-$app=Join-Path $target 'app'
+$legacyApp=Join-Path $target 'app'
+$programs=Join-Path $target 'programs'
 $data=Join-Path $target 'data'
-if($UpdateOnly -and -not(Test-Path $app)){throw '尚未安装员工端，请先运行 InstallEmployee.cmd。'}
-New-Item -ItemType Directory -Force -Path $app,$data | Out-Null
+if($UpdateOnly -and -not(Test-Path $legacyApp) -and -not(Test-Path $programs)){throw '尚未安装员工端，请先运行 InstallEmployee.cmd。'}
+New-Item -ItemType Directory -Force -Path $target,$data | Out-Null
 $identity=[System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 & icacls.exe $target /inheritance:r /grant:r "${identity}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F' | Out-Null
 if($LASTEXITCODE -ne 0){throw '无法保护员工端数据目录，请检查当前 Windows 账号权限。'}
@@ -68,23 +69,36 @@ if((Test-Path -LiteralPath $bundled) -and (Test-Path -LiteralPath $manifestPath)
  if(-not(Test-SupportedNode $node)){throw '运行环境文件缺失。请完整解压新版员工端安装包，保留 runtime 文件夹后重试。'}
 }
 if(-not(Test-SupportedNode $node)){throw '自带运行环境无法启动。请确认 Windows 为受支持的 x64 版本，并检查安全软件是否拦截 node.exe。'}
+# Prepare and hash-check the complete new app before stopping the working employee client.
+# Legacy app may have inaccessible files; nothing is copied over it or over data.
+Write-Host '正在准备并校验新版员工端程序，保留原有本地资料...'
+$app=(& $node (Join-Path $PSScriptRoot 'install-layout.mjs') $PSScriptRoot $target | Out-String).Trim()
+if($LASTEXITCODE -ne 0 -or -not $app -or -not(Test-Path -LiteralPath (Join-Path $app 'start.mjs'))){throw '新版程序准备失败，原有data和待同步文件保留。请保留完整解压目录并查看上方具体错误。'}
+# Repair only the two launcher files owned by this installation, never data ACLs.
+$startup=Join-Path ([Environment]::GetFolderPath('Startup')) 'OrbitEmployee.vbs'
+$shortcutPath=Join-Path ([Environment]::GetFolderPath('Desktop')) 'Orbit Employee.lnk'
+foreach($file in @($startup,$shortcutPath)) {
+ if(Test-Path -LiteralPath $file) {
+  & icacls.exe $file /reset | Out-Null
+  if($LASTEXITCODE -ne 0){throw ('无法更新员工端启动入口：'+$file+'。原有data未删除。')}
+  (Get-Item -LiteralPath $file -Force).IsReadOnly=$false
+ }
+}
 # Stop only this user's employee supervisor/worker, never the content server.
-Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -and ($_.CommandLine.Contains((Join-Path $app 'start.mjs')) -or $_.CommandLine.Contains((Join-Path $app 'server.mjs')) -or $_.CommandLine.Contains((Join-Path $data 'releases'))) } | ForEach-Object {
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -and ($_.CommandLine.Contains((Join-Path $legacyApp 'start.mjs')) -or $_.CommandLine.Contains((Join-Path $legacyApp 'server.mjs')) -or $_.CommandLine.Contains(($programs+'\')) -or $_.CommandLine.Contains((Join-Path $data 'releases'))) } | Sort-Object @{Expression={if($_.CommandLine.Contains('start.mjs')){0}else{1}}} | ForEach-Object {
  $owner=Invoke-CimMethod -InputObject $_ -MethodName GetOwner
  if(($owner.Domain+'\'+$owner.User) -eq $identity){Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}
 }
-# The queue/cache live outside app; updating never removes or overwrites data.
-Get-ChildItem $PSScriptRoot -File | Where-Object {$_.Extension -in '.mjs','.md'} | Copy-Item -Destination $app -Force
-Copy-Item (Join-Path $PSScriptRoot 'ui') -Destination $app -Recurse -Force
-Remove-Item (Join-Path $data 'active-release.json') -Force -ErrorAction SilentlyContinue
-$launcher=Join-Path $target 'LaunchEmployee.vbs'
+# A manual update must not silently launch an older automatic release.
+$releasePointer=Join-Path $data 'active-release.json'
+if(Test-Path -LiteralPath $releasePointer){Remove-Item -LiteralPath $releasePointer -Force -ErrorAction Stop}
+$launcher=Join-Path $app 'LaunchEmployee.vbs'
 # Quote paths independently; no shell interpolation of employee content.
 $vbs='Set shell = CreateObject("WScript.Shell")'+"`r`n"+'shell.Run """'+$node+'"" ""'+(Join-Path $app 'start.mjs')+'"" --open", 0, False'
 [IO.File]::WriteAllText($launcher,$vbs,[Text.Encoding]::Unicode)
-$startup=Join-Path ([Environment]::GetFolderPath('Startup')) 'OrbitEmployee.vbs'
 $startupText='WScript.Sleep 30000'+"`r`n"+'Set shell = CreateObject("WScript.Shell")'+"`r`n"+'shell.Run """'+$node+'"" ""'+(Join-Path $app 'start.mjs')+'"" --background", 0, False'
 [IO.File]::WriteAllText($startup,$startupText,[Text.Encoding]::Unicode)
-$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Orbit Employee.lnk'))
+$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
 $shortcut.TargetPath='wscript.exe';$shortcut.Arguments='"'+$launcher+'"';$shortcut.Save()
 Start-Process wscript.exe -ArgumentList ('"'+$launcher+'"')
 Write-Host 'Employee client installed. Open the desktop shortcut; enter the server address and employee account.'
