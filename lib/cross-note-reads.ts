@@ -1,0 +1,5 @@
+import type {DatabaseSync} from 'node:sqlite';
+import type {AuthUser} from './server-auth';
+import {crossRow,recordVisible} from './cross-workflow';
+export function unreadCrossNotes(db:DatabaseSync,user:{id:number},project:number,id:number){return Number(db.prepare('SELECT count(*) AS n FROM cross_notes n WHERE n.record_id=? AND coalesce(n.author_id,0)<>? AND n.id>coalesce((SELECT note_id FROM cross_note_reads WHERE user_id=? AND project_id=? AND record_id=?),0)').get(id,user.id,user.id,project,id)!.n);}
+export function readCrossNotes(db:DatabaseSync,user:AuthUser,id:number,through:number){const row=crossRow(db,id,user.projectId!);if(!row||!recordVisible(db,row,user))throw Error('资料不存在或无权访问');const max=Number(db.prepare('SELECT coalesce(max(id),0) AS n FROM cross_notes WHERE record_id=?').get(id)!.n);if(!Number.isSafeInteger(through)||through<0||through>max)throw Error('备注读取位置无效');db.prepare('INSERT INTO cross_note_reads(user_id,project_id,record_id,note_id) VALUES(?,?,?,?) ON CONFLICT(user_id,project_id,record_id) DO UPDATE SET note_id=max(note_id,excluded.note_id)').run(user.id,row.project_id,id,through);return unreadCrossNotes(db,user,row.project_id,id);}

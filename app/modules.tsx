@@ -1,4 +1,6 @@
 "use client";
+import {BusinessBatch,BatchSelect} from './business-batch';
+import {useBusinessAdmin} from './business-admin';
 import {PermanentDeleteButton} from './permanent-delete-button';
 import {employeeLocalMode,saveEmployeeContent} from './employee-sync';
 import {clientRequestKey} from '@/lib/client-request-key';
@@ -1045,8 +1047,6 @@ function ContentRecycleBin({
   const [owner, setOwner] = useState("全部员工");
   const [canPurge, setCanPurge] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [confirm, setConfirm] = useState<"restore" | "purge" | null>(null);
-  const [busy, setBusy] = useState(false);
   const [smartRules, setSmartRules] = useState<SmartFilterRule[]>([]);
   const [previewItem,setPreviewItem]=useState<TrashContent|null>(null);
   const [page,setPage]=useState(1);const [pageSize,setPageSize]=useState(20);
@@ -1098,46 +1098,11 @@ function ContentRecycleBin({
     { key: "createdAt", label: "上传时间", type: "date", getValue: (item) => item.createdAt },
     { key: "deletedAt", label: "删除时间", type: "date", getValue: (item) => item.deletedAt },
   ], [items, owners, recycleProductOptions]);
+  const previousLabel=(status:string|null)=>({draft:'草稿',pending:'待审核',reviewing:'审核中',approved:'已通过',rejected:'已驳回'} as Record<string,string>)[status??'']??status??'草稿';
+  const trashBatchAdmin=useBusinessAdmin();
   const visible = useMemo(() => applySmartFilters(items, smartRules, recycleFields), [items, smartRules, recycleFields]);
   const pageCount=Math.max(1,Math.ceil(visible.length/pageSize));const pageRows=visible.slice((Math.min(page,pageCount)-1)*pageSize,Math.min(page,pageCount)*pageSize);
-  const act = async (action: "restore" | "purge") => {
-    setBusy(true);
-    try {
-      const response = await fetch("/api/contents/trash", {
-        method: action === "restore" ? "POST" : "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ codes: selected }),
-      });
-      const data = (await response.json()) as {
-        error?: string;
-        count?: number;
-      };
-      if (!response.ok) throw new Error(data.error ?? "操作失败");
-      setConfirm(null);
-      setSelected([]);
-      await load();
-      await onChanged();
-      notify(
-        action === "restore"
-          ? `已恢复 ${data.count ?? 0} 条内容`
-          : `已永久删除 ${data.count ?? 0} 条内容及对应文件`,
-      );
-    } catch (reason) {
-      notify(reason instanceof Error ? reason.message : "操作失败");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const previousLabel = (status: string | null) =>
-    ({
-      draft: "草稿",
-      pending: "待审核",
-      reviewing: "审核中",
-      approved: "已通过",
-      rejected: "已驳回",
-    })[status ?? ""] ??
-    status ??
-    "草稿";
+
   return (
     <>
       <div className="drilldown-header recycle-bin-header">
@@ -1183,29 +1148,7 @@ function ContentRecycleBin({
           </button>
         </div>
         <RuleFilterBar moduleKey="trash" fields={recycleFields} rules={smartRules} onChange={setSmartRules} />
-        <div className="trash-toolbar">
-          <div>
-            <strong>已选择 {selected.length} 条</strong>
-            <small>永久删除后无法恢复，请先确认不是需要保留的正式内容。</small>
-          </div>
-          <div>
-            <button
-              disabled={!selected.length || busy}
-              onClick={() => setConfirm("restore")}
-            >
-              恢复所选内容
-            </button>
-            {canPurge && (
-              <button
-                className="danger"
-                disabled={!selected.length || busy}
-                onClick={() => setConfirm("purge")}
-              >
-                永久删除
-              </button>
-            )}
-          </div>
-        </div>
+        <BusinessBatch kind="content" items={items.filter(i=>selected.includes(i.code)).map(i=>({key:i.code,title:i.title}))} actions={['restore',...(canPurge||trashBatchAdmin?['purge']:[])]} onClear={()=>setSelected([])} onComplete={async keys=>{setSelected(old=>old.filter(k=>!keys.includes(k)));await load();await onChanged();}}/>
         <div className="table-wrap">
           <table className="module-table recycle-table">
             <thead>
@@ -1296,41 +1239,7 @@ function ContentRecycleBin({
         <div className="list-pagination"><label>每页<select value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1);setSelected([]);}}><option value="20">20条</option><option value="50">50条</option><option value="100">100条</option></select></label><span>共{visible.length}条 · {Math.min(page,pageCount)}/{pageCount}页</span><button disabled={page<=1} onClick={()=>{setPage(value=>value-1);setSelected([]);}}>上一页</button><button disabled={page>=pageCount} onClick={()=>{setPage(value=>value+1);setSelected([]);}}>下一页</button></div>
       </section>
       {previewItem?<CenterDialog title="回收站预览（只读）" onClose={()=>setPreviewItem(null)}><div className="report-detail"><p>{previewItem.code} · V{previewItem.latestVersionNumber}</p><h3>{previewItem.title}</h3><p>{previewItem.contentType==="video"?"视频内容":"图文内容"} · 上传人：{previewItem.uploaderName}</p><p>删除前状态：{previousLabel(previewItem.trashPreviousStatus??previewItem.reviewStatus)}</p><p>已删除时间：{formatServerTime(previewItem.deletedAt)}</p><small>回收站内容仅可预览和查看，不能在此处编辑、恢复或删除。</small></div></CenterDialog>:null}
-      {confirm && (
-        <div className="modal-backdrop confirm-layer">
-          <div className="modal confirm-modal">
-            <div className="confirm-icon">!</div>
-            <h3>
-              {confirm === "restore"
-                ? `确认恢复 ${selected.length} 条内容？`
-                : `确认永久删除 ${selected.length} 条内容？`}
-            </h3>
-            <p>
-              {confirm === "restore"
-                ? "内容将恢复到删除前的流程状态；审核队列占用不会恢复。"
-                : "数据库记录、所有历史版本以及视频或图片原文件都会被删除，此操作无法撤销。"}
-            </p>
-            <div className="confirm-actions">
-              <button disabled={busy} onClick={() => setConfirm(null)}>
-                取消
-              </button>
-              <button
-                disabled={busy}
-                className={
-                  confirm === "purge" ? "danger-confirm" : "primary-button"
-                }
-                onClick={() => void act(confirm)}
-              >
-                {busy
-                  ? "处理中"
-                  : confirm === "restore"
-                    ? "确认恢复"
-                    : "确认永久删除"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }
@@ -1359,6 +1268,7 @@ function ContentPool({
   initialTarget?: string;
 }) {
   const { context } = useBusinessContext();
+  const batchAdmin=useBusinessAdmin();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [archivedView,setArchivedView]=useState(false);
   const [expandedLane,setExpandedLane]=useState<number|null>(null);
@@ -1872,66 +1782,6 @@ function ContentPool({
         return index >= 0 ? change(row, index) : row;
       }),
     );
-  const applyContentAction = async (
-    row: UnifiedContent,
-    action: "submit" | "withdraw",
-  ) => {
-    const response = await fetch(
-      `/api/contents/${encodeURIComponent(row.id)}`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action }),
-      },
-    );
-    if (!response.ok) {
-      const data = (await response.json()) as { error?: string };
-      throw new Error(data.error ?? "操作失败");
-    }
-  };
-  const withdraw = async () => {
-    const targets = selected.filter((row) => row.status === "待审核");
-    try {
-      await Promise.all(
-        targets.map((row) => applyContentAction(row, "withdraw")),
-      );
-      await reloadContents();
-      notify(`已撤回 ${targets.length} 条待审核内容；审核中的内容未处理`);
-    } catch (reason) {
-      notify(reason instanceof Error ? reason.message : "撤回失败");
-    }
-  };
-  const submitDrafts = async () => {
-    const targets = selected.filter((row) => row.status === "草稿");
-    try {
-      await Promise.all(
-        targets.map((row) => applyContentAction(row, "submit")),
-      );
-      await reloadContents();
-      notify(`已批量提交 ${targets.length} 条草稿`);
-    } catch (reason) {
-      notify(reason instanceof Error ? reason.message : "提交失败");
-    }
-  };
-  const deleteSelected = async () => {
-    if(!window.confirm("将所选可删除内容移入回收站？可在回收站恢复；审核中的内容不能撤回或删除。"))return;
-    const targets = selected.filter(
-      (row) => ["草稿", "已驳回"].includes(row.status) && !row.locked,
-    );
-    try {
-      const payload={action:"trash",codes:targets.map(row=>row.id),confirmRecommendationCancellation:false};let response=await fetch("/api/contents/batch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});let data=await response.json();if(!response.ok&&data.requiresRecommendationConfirmation&&window.confirm(`${data.error}，是否继续移入回收站？`)){response=await fetch("/api/contents/batch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,confirmRecommendationCancellation:true})});data=await response.json();}if(!response.ok)throw new Error(data.error??"删除失败");
-      await reloadContents();
-      setSelectedIds([]);
-      notify(`已将 ${targets.length} 条内容移入回收站；其他状态内容未删除`,"success");
-    } catch (reason) {
-      notify(reason instanceof Error ? reason.message : "删除失败");
-    }
-  };
-  const archiveSelected=async()=>{
-    const targets=selected.filter(row=>archivedView?Boolean(row.archivedAt):row.status!=="草稿");if(!targets.length){notify(archivedView?"请选择需要恢复的归档内容":"草稿不能归档，请选择审核流程中的内容","error");return;}
-    const reason=archivedView?"":window.prompt("请输入本次批量归档原因")?.trim()??"";if(!archivedView&&!reason)return;
-    try{const payload={action:archivedView?"unarchive":"archive",codes:targets.map(row=>row.id),reason,confirmRecommendationCancellation:false};let response=await fetch("/api/contents/batch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});let data=await response.json();if(!response.ok&&data.requiresRecommendationConfirmation&&window.confirm(`${data.error}，是否继续？`)){response=await fetch("/api/contents/batch",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...payload,confirmRecommendationCancellation:true})});data=await response.json();}if(!response.ok)throw new Error(data.error??"操作失败");setSelectedIds([]);await reloadContents();notify(archivedView?`已恢复 ${targets.length} 条内容`:`已归档 ${targets.length} 条内容`,"success");}catch(error){notify((error as Error).message,"error");}
-  };
   const applyBatchModal = async () => {
     if (!batchValue.trim()) return;
     const targets = selected.filter((row) => row.status === "草稿");
@@ -2493,6 +2343,8 @@ function ContentPool({
         {boardCan("content.delete")?<button onClick={()=>setTrashOpen(true)}>回收站</button>:null}</div>
       </div>
       <section className="panel content-board-panel">
+        <BusinessBatch kind="content" items={selected.map(r=>({key:r.id,title:r.title}))} actions={[...(boardCan('content.submit')?['submit']:[]),...(boardCan('content.withdraw')?['withdraw']:[]),...(boardCan('content.archive')?[archivedView?'unarchive':'archive']:[]),...(boardCan('content.delete')?['delete']:[]),...(batchAdmin?['purge']:[]),...(boardCan('content.download')?['download']:[])]} onClear={()=>setSelectedIds([])} onComplete={async keys=>{setSelectedIds(old=>old.filter(k=>!keys.includes(k)));await reloadContents();}}/>
+        <div className="material-select-page"><BatchSelect title="选择当前已加载内容" checked={visibleRows.length>0&&visibleRows.every(r=>selectedIds.includes(r.id))} onChange={()=>setSelectedIds(visibleRows.every(r=>selectedIds.includes(r.id))?[]:visibleRows.map(r=>r.id))}/><span>选择当前已加载内容</span>{selectedIds.length&&boardCan('content.edit')?<><button onClick={()=>{setBatchValue('');setBatchModal('rename');}}>修改草稿名称</button><button onClick={()=>{setBatchValue('');setBatchModal('remark');}}>修改草稿备注</button></>:null}</div>
         <RuleFilterBar moduleKey="contents" fields={contentFilterFields} rules={smartRules} onChange={setSmartRules} view={{sort:boardSort,group:"status"}} onViewChange={view=>setBoardSort(view.sort??"default")} />
         <div className="content-board content-board-grid">
           {["草稿","待审核","已驳回","已通过"].map((status,lane)=>{
@@ -2503,7 +2355,7 @@ function ContentPool({
               <button className="lane-expand-heading" onClick={()=>{setSelectedIds([]);setExpandedLane(lane);}} aria-label={`展开${status}完整列表`}><h3>{status}</h3><span>{total}</span><small>展开 ↗</small></button>
               <div className="content-lane-scroll" ref={node=>{if(node&&scrollPositions.current[lane]!==undefined)node.scrollTop=scrollPositions.current[lane];}} onScroll={e=>{scrollPositions.current[lane]=e.currentTarget.scrollTop;}}>
                 {laneRows.map(row=><article key={row.id} className="content-board-card compact-content-card cover-tile" style={{borderColor:employeeColor(row.uploaderUserId??row.owner,row.contentColor)+"cc"}}>{row.featured?<span className="cover-featured-badge" title="推荐内容">★</span>:null}
-                  <><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} summary={`${row.owner} · ${row.status} · ${row.version} · ${row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`} · ${formatBytes(row.fileSize??0)}\n${row.time}`} onOpen={()=>openDetail(row.id,"view")}/><PermanentDeleteButton kind="content" code={row.id}/></>
+                  <><BatchSelect title={'选择'+row.title} checked={selectedIds.includes(row.id)} onChange={()=>setSelectedIds(old=>old.includes(row.id)?old.filter(k=>k!==row.id):[...old,row.id])}/><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} summary={`${row.owner} · ${row.status} · ${row.version} · ${row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`} · ${formatBytes(row.fileSize??0)}\n${row.time}`} onOpen={()=>openDetail(row.id,"view")}/><PermanentDeleteButton kind="content" code={row.id}/></>
                   <div className="content-product-chip" title={row.product==="未分配"?"无商品":row.product}><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product==="未分配"?"无商品":row.product}</span></div>
                 </article>)}
                 {!laneRows.length?<div className="empty-state">暂无{status}内容</div>:null}
@@ -2515,7 +2367,7 @@ function ContentPool({
                   <td><input aria-label={`选择${row.title}`} type="checkbox" checked={selectedIds.includes(row.id)} onChange={e=>setSelectedIds(e.target.checked?[...selectedIds,row.id]:selectedIds.filter(id=>id!==row.id))}/></td><td>{row.status}</td>
                   <td><div className="expanded-content-title"><><ContentPreview code={row.id} versionId={row.versionId} title={row.title} kind={row.kind} comment={row.reviewComment??row.rejectionReason} onOpen={()=>openDetail(row.id,"view")}/><PermanentDeleteButton kind="content" code={row.id}/></><button className="content-detail-link" onClick={()=>openDetail(row.id,"view")}>{row.title}</button>{row.categoryName?<small>{row.categoryName}</small>:null}</div></td><td>{row.owner}</td><td><span className="expanded-product-cell"><ProductImage url={row.productImageUrl} name={row.product}/><span>{row.product}</span></span></td><td>{row.version}</td><td>{row.kind==="视频"?formatDuration(row.durationSeconds):`${row.imageCount??0}张`}</td><td>{formatBytes(row.fileSize??0)}</td><td>{row.time}</td><td className="expanded-review">{row.reviewComment||row.rejectionReason||"—"}</td>
                 </tr>)}</tbody></table>{!laneRows.length?<div className="empty-state">暂无符合条件的内容</div>:null}</div>{pager}
-                {selectedIds.length?<footer><span>已选{selectedIds.length}条</span>{boardCan("content.edit")&&selected.some(row=>row.status==="草稿")?<><button onClick={()=>{setBatchValue("");setBatchModal("rename");}}>批量改名称</button><button onClick={()=>{setBatchValue("");setBatchModal("remark");}}>批量写备注</button></>:null}{boardCan("content.submit")?<button onClick={submitDrafts}>提交草稿</button>:null}{boardCan("content.withdraw")?<button onClick={withdraw}>批量撤回审核</button>:null}{boardCan("content.archive")?<button onClick={()=>void archiveSelected()}>{archivedView?"恢复所选":"归档所选"}</button>:null}{boardCan("content.delete")?<button onClick={deleteSelected}>移入回收站</button>:null}<button onClick={()=>setSelectedIds([])}>取消选择</button></footer>:null}
+                <BusinessBatch kind="content" items={selected.map(r=>({key:r.id,title:r.title}))} actions={[...(boardCan('content.submit')?['submit']:[]),...(boardCan('content.withdraw')?['withdraw']:[]),...(boardCan('content.archive')?[archivedView?'unarchive':'archive']:[]),...(boardCan('content.delete')?['delete']:[]),...(batchAdmin?['purge']:[]),...(boardCan('content.download')?['download']:[])]} onClear={()=>setSelectedIds([])} onComplete={async keys=>{setSelectedIds(old=>old.filter(k=>!keys.includes(k)));await reloadContents();}}/>
               </CenterDialog>:null}
             </section>;
           })}

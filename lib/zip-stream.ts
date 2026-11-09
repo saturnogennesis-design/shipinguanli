@@ -9,4 +9,19 @@ function descriptor(crc:number,size:number){const bytes=new Uint8Array(16),view=
 function central(name:Uint8Array,crc:number,size:number,offset:number){const bytes=new Uint8Array(46+name.length),view=new DataView(bytes.buffer);u32(view,0,0x02014b50);u16(view,4,20);u16(view,6,20);u16(view,8,0x0808);u16(view,10,0);u32(view,16,crc);u32(view,20,size);u32(view,24,size);u16(view,28,name.length);u32(view,42,offset);bytes.set(name,46);return bytes;}
 function end(count:number,size:number,offset:number){const bytes=new Uint8Array(22),view=new DataView(bytes.buffer);u32(view,0,0x06054b50);u16(view,8,count);u16(view,10,count);u32(view,12,size);u32(view,16,offset);return bytes;}
 
-export function zipStream(entries:ZipEntry[]){return new ReadableStream<Uint8Array>({async start(controller){const records:Array<{name:Uint8Array;crc:number;size:number;offset:number}>=[];let offset=0;try{for(const entry of entries){const body=await entry.open();if(!body)continue;const name=encoder.encode(entry.name),header=localHeader(name),start=offset;controller.enqueue(header);offset+=header.length;let crc=0xffffffff,size=0;const reader=body.getReader();for(;;){const {done,value}=await reader.read();if(done)break;if(size+value.byteLength>0xffffffff)throw new Error("ZIP32 entry too large");crc=updateCrc(crc,value);size+=value.byteLength;controller.enqueue(value);offset+=value.byteLength;}crc=(crc^0xffffffff)>>>0;const tail=descriptor(crc,size);controller.enqueue(tail);offset+=tail.length;records.push({name,crc,size,offset:start});}const centralOffset=offset;for(const record of records){const bytes=central(record.name,record.crc,record.size,record.offset);controller.enqueue(bytes);offset+=bytes.length;}const footer=end(records.length,offset-centralOffset,centralOffset);controller.enqueue(footer);controller.close();}catch(error){controller.error(error);}}});}
+export function zipStream(entries:ZipEntry[]){
+ async function* chunks(){
+  const records:Array<{name:Uint8Array;crc:number;size:number;offset:number}>=[];let offset=0;
+  for(const entry of entries){
+   const body=await entry.open();if(!body)continue;
+   const name=encoder.encode(entry.name),header=localHeader(name),start=offset;
+   if(name.length>65535||records.length>=65535)throw Error('ZIP32目录过大，请减少下载数量');
+   offset+=header.length;let crc=0xffffffff,size=0;const reader=body.getReader();let finished=false;
+   try{yield header;for(;;){const {done,value}=await reader.read();if(done){finished=true;break;}if(size+value.byteLength>0xffffffff||offset+value.byteLength>0xffffffff)throw Error('ZIP32文件过大，请分批下载');crc=updateCrc(crc,value);size+=value.byteLength;offset+=value.byteLength;yield value;}}
+   finally{if(!finished)await reader.cancel().catch(()=>{});reader.releaseLock();}
+   crc=(crc^0xffffffff)>>>0;const tail=descriptor(crc,size);offset+=tail.length;yield tail;records.push({name,crc,size,offset:start});
+  }
+  const centralOffset=offset;for(const record of records){const bytes=central(record.name,record.crc,record.size,record.offset);offset+=bytes.length;yield bytes;}yield end(records.length,offset-centralOffset,centralOffset);
+ }
+ const iterator=chunks();return new ReadableStream<Uint8Array>({async pull(controller){try{const next=await iterator.next();if(next.done)controller.close();else controller.enqueue(next.value);}catch(error){controller.error(error);}},async cancel(){await iterator.return();}});
+}

@@ -10,16 +10,22 @@ export type PublishingAssignment = {
 };
 
 // Synchronous callbacks cannot yield while the shared SQLite connection is locked.
-export function atomicWrite<T>(db: DatabaseSync, write: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
+let savepointSequence=0;
+const activeWrites=new WeakSet<DatabaseSync>();
+export function atomicWrite<T>(db: DatabaseSync, write: () => T, options: {rollback?:boolean}={}): T {
+  const nested=activeWrites.has(db)||db.isTransaction===true,name='orbit_'+(++savepointSequence);
+  db.exec(nested?'SAVEPOINT '+name:'BEGIN IMMEDIATE');
+  if(!nested)activeWrites.add(db);
   try {
-    const result = write();
-    db.exec("COMMIT");
+    const result=write();
+    if(options.rollback)db.exec(nested?'ROLLBACK TO '+name:'ROLLBACK');
+    if(nested)db.exec('RELEASE '+name);else if(!options.rollback)db.exec('COMMIT');
     return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
+  } catch(error) {
+    db.exec(nested?'ROLLBACK TO '+name:'ROLLBACK');
+    if(nested)db.exec('RELEASE '+name);
     throw error;
-  }
+  } finally {if(!nested)activeWrites.delete(db);}
 }
 
 function assertContent(db: DatabaseSync, id: number, accountIds: number[]) {

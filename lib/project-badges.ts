@@ -1,3 +1,4 @@
+import {unreadCrossNotes} from './cross-note-reads';
 import {responsible} from './cross-assignment';
 import {isProjectMaster} from './project-visibility';
 import type {DatabaseSync} from 'node:sqlite';
@@ -16,6 +17,7 @@ export function projectBadge(db:DatabaseSync,user:AuthUser,project:number,type:s
  const rows=db.prepare("SELECT * FROM cross_records WHERE project_id=? AND lifecycle='active'").all(project) as CrossRecord[];
  for(const r of rows){if(!recordVisible(db,r,user))continue;
   if(can('cross.review')&&r.status==='pending'&&(db.prepare('SELECT * FROM cross_files WHERE record_id=? AND active=1').all(r.id) as CrossFile[]).every(f=>fileVisible(db,f,user)))pending.add('c'+r.id);
+  if(unreadCrossNotes(db,user,project,r.id)>0)unread.add('c'+r.id);
   const token=updateToken(db,'cross',r.id,user.id);if(responsible(r)===user.id&&token!=='0'&&token!==seen('cross',r.id))unread.add('c'+r.id);
  }
  }else if(type==='short_video'){

@@ -63,7 +63,10 @@ export async function getSessionTokenHash(request: Request) {
 }
 
 export async function getCurrentUser(request: Request): Promise<AuthUser | null> {
-  const tokenHash = await getSessionTokenHash(request);
+  return userForSessionHash(await getSessionTokenHash(request));
+}
+// Server-only use: a download ticket refers to an existing, still-active session.
+export async function userForSessionHash(tokenHash:string): Promise<AuthUser | null> {
   if (!tokenHash) return null;
   const db = getDb();
   const [row] = await db
@@ -121,8 +124,10 @@ export async function getCurrentUser(request: Request): Promise<AuthUser | null>
   };
 }
 
+const internalUsers=new WeakMap<Request,AuthUser>();
+export function authorizeInternalRequest(request:Request,user:AuthUser){internalUsers.set(request,structuredClone(user));return request;}
 export async function requireUser(request: Request) {
-  const user = await getCurrentUser(request);
+  const user = internalUsers.get(request)??await getCurrentUser(request);
   if (!user) return { user: null, response: Response.json({ error: "请先登录" }, { status: 401 }) } as const;
   const projectError=await bindProjectRequest(getLocalDatabase(),request,user);
   if(projectError)return {user:null,response:projectError} as const;
