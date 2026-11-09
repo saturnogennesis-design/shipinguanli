@@ -1,3 +1,17 @@
+# Windows员工端1.3.1安装修复（测试版）
+
+- [Windows员工端1.3.1完整安装／更新包](OrbitEmployee-v1.3.1.zip?raw=1) · [SHA-256](OrbitEmployee-v1.3.1.zip.sha256)
+
+修复1.3.0安装脚本读取旧node.exe时因访问被拒绝直接中止的问题。旧运行环境无法验证时，改在独立新目录准备并校验包内官方运行环境，成功后才停止旧员工端并切换。更新不覆盖旧运行环境、不删除data或未同步文件，不要求另装Node.js或管理员运行。若系统也拦截新目录，会保留数据并提示失败，不能保证绕过Windows安全策略。
+
+完整解压后，使用原Windows账号运行UpdateEmployee.cmd；首次安装运行InstallEmployee.cmd。主机已是3.28.0无需再更新，Mac继续使用下方1.3.0。本次不包含备注红点功能。
+
+源代码：`5c3e1fe5263e4bda5c52751b7a2b807c74cb3b86`。32项离线／同步回归通过，PowerShell静态语法检查、ZIP CRC及逐文件SHA-256校验通过。受开发约定限制未运行Windows安装脚本，尚未在Windows实机复现和验收。未部署、未合并默认分支。
+
+SHA-256：`efe55f4268a136691923fec8ae028f37716c55242ed302bd022bb1ad9f837133`。
+
+---
+
 # V3.28.0主机 / 员工端1.3.0（测试版）
 
 - [主机3.28.0安装／更新](OrbitVideoSetup-v3.28.0.zip?raw=1) · [SHA-256](OrbitVideoSetup-v3.28.0.zip.sha256)
