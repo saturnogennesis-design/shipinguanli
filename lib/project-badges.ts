@@ -1,3 +1,5 @@
+import {taskWorkspaceEnabled} from './cross-task-scope';
+import {syncCrossTasks,taskVisible,type CrossTask} from './cross-tasks';
 import {crossWork} from './cross-work';
 import {unreadCrossNotes} from './cross-note-reads';
 import {responsible} from './cross-assignment';
@@ -15,9 +17,10 @@ export function projectBadge(db:DatabaseSync,user:AuthUser,project:number,type:s
  const unread=new Set<string>(),pending=new Set<string>();const modules:Record<string,{pending:Set<string>;updates:Set<string>}>={};const can=(k:string)=>projectPermission(user,k,project);
  const seen=(kind:string,id:number)=>String(db.prepare('SELECT token FROM project_update_reads WHERE user_id=? AND project_id=? AND kind=? AND record_id=?').get(user.id,project,kind,id)?.token??'');
  if(type==='cross_border'&&can('cross.view')){
+ const scoped=taskWorkspaceEnabled(db,project);if(scoped){syncCrossTasks(db,project);for(const t of db.prepare('SELECT * FROM cross_tasks WHERE project_id=?').all(project) as CrossTask[]){if(!taskVisible(db,t,user)||t.status==='blocked')continue;const key=t.stage==='mother'?'母版库':'产品管理',bucket=modules[key]??(modules[key]={pending:new Set(),updates:new Set()}),entry=t.result_id?'c'+t.result_id:'t'+t.id;if((t.assignee_id===user.id&&['todo','making','rejected'].includes(t.status)&&(can('cross.create')||can('cross.edit')))||t.status==='pending'&&can('cross.review')){pending.add(entry);bucket.pending.add(entry);}if(t.assignee_id===user.id&&Number(db.prepare('SELECT revision FROM cross_task_reads WHERE task_id=? AND user_id=?').get(t.id,user.id)?.revision??0)<t.revision){unread.add(entry);bucket.updates.add(entry);}}}
  const rows=db.prepare("SELECT * FROM cross_records WHERE project_id=? AND lifecycle='active'").all(project) as CrossRecord[];
  for(const r of rows){if(!recordVisible(db,r,user))continue;
-  const work=crossWork(db,r,user.id,{canCreate:can('cross.create'),canEdit:can('cross.edit'),canReview:can('cross.review'),canPublish:can('cross.publish')});if(work.actionable)pending.add('c'+r.id);
+  const work=crossWork(db,r,user.id,{canCreate:can('cross.create'),canEdit:can('cross.edit'),canReview:can('cross.review'),canPublish:can('cross.publish')});if(work.actionable&&(!scoped||work.workState==='publish'))pending.add('c'+r.id);
   if(can('cross.review')&&r.status==='pending'&&(db.prepare('SELECT * FROM cross_files WHERE record_id=? AND active=1').all(r.id) as CrossFile[]).every(f=>fileVisible(db,f,user)))pending.add('c'+r.id);
   if(unreadCrossNotes(db,user,project,r.id)>0)unread.add('c'+r.id);
   const token=updateToken(db,'cross',r.id,user.id);if(responsible(r)===user.id&&token!=='0'&&token!==seen('cross',r.id))unread.add('c'+r.id);

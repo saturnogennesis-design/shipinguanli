@@ -41,7 +41,7 @@ export function changeBatchRecord(db:DatabaseSync,user:AuthUser,kind:BusinessKin
   if(['archive','unarchive','delete','restore'].includes(action))return crossLifecycle(db,{...input,action,canArchive:access.canArchive,canDelete:access.canDelete});
   if(action==='download'){if(!access.canDownload||r.kind!=='package'||r.lifecycle!=='active'||r.status!=='approved')throw Error('仅有下载权限的已通过产品包可下载');return row;}
   if(!['submit','withdraw'].includes(action))throw Error('不支持的操作');
-  if(!access.canAssign&&!ownsCrossWork(r,user.id))throw Error('没有修改该资料的权限');
+  if(!access.canAssign&&!ownsCrossWork(r,user.id,db))throw Error('没有修改该资料的权限');
   return changeCross(db,{...input,action,canReview:false,canEdit:access.canEdit||access.canCreate&&r.version_number===0});
  }
  if(['assign','urgency'].includes(action))throw Error('当前资料不支持此操作');

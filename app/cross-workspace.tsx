@@ -1,4 +1,5 @@
 "use client";
+import {ScopedTaskWorkspace} from './scoped-task-workspace';
 import {CrossPublication} from './cross-publication';
 import {CrossWorkboard,workMatches,emptyWorkFilter,type WorkFilter} from './cross-workboard';
 import {CrossRecordPreview} from './cross-media-preview';
@@ -21,8 +22,12 @@ import {CrossEditor,type Draft} from './cross-editor';
 import {CrossThumb,CrossFilters,matchesFilter,defaultFilters,Pager,type Filters} from './cross-components';
 import {states,localTime,type Row,type Person,type Category,type BusinessType,type Access,type Detail,type Notify} from './cross-types';
 type BlockedAction={message:string;items:{id:number;title:string;kind:string}[]};
+
+type WorkspaceProps={requestedScope?:string;requestEpoch?:number;module:string;projectId:number;notify:Notify;navigate:(s:string)=>void};
+export function CrossWorkspace(props:WorkspaceProps){const [enabled,setEnabled]=useState<boolean|null>(null),[error,setError]=useState('');useEffect(()=>{let live=true;projectApi('/api/cross-records').then(d=>{if(live)setEnabled(Boolean(d.taskWorkspace));}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[props.projectId]);if(enabled===null)return <p role={error?'alert':'status'}>{error||'正在读取项目工作区…'}</p>;return enabled?<ScopedTaskWorkspace {...props}/>:<LegacyCrossWorkspace {...props}/>;}
+
 const emptyAccess:Access={canEdit:false,canArchive:false,canDelete:false,admin:false,canAssign:false,canCreate:false,canReview:false,canView:false,canDownload:false};
-export function CrossWorkspace({requestedScope,requestEpoch,module:requestedModule,projectId,notify,navigate}:{requestedScope?:string;requestEpoch?:number;module:string;projectId:number;notify:Notify;navigate:(s:string)=>void}){
+function LegacyCrossWorkspace({requestedScope,requestEpoch,module:requestedModule,projectId,notify,navigate}:{requestedScope?:string;requestEpoch?:number;module:string;projectId:number;notify:Notify;navigate:(s:string)=>void}){
  const [workFilter,setWorkFilter]=useState<WorkFilter>(emptyWorkFilter);
  const [previewRow,setPreviewRow]=useState<Row|null>(null);
  const [clueScope,setClueScope]=useState<ClueScope>('all');
