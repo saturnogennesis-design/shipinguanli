@@ -2,6 +2,13 @@ export type PermissionItem = { key:string; label:string; description:string; hig
 export type PermissionGroup = { key:string; label:string; permissions:PermissionItem[] };
 
 export const permissionGroups:PermissionGroup[] = [
+  {key:'transfer',label:'临时文件中转站',permissions:[
+   {key:'transfer.view',label:'查看临时文件包',description:'按项目和资料范围查看临时文件包及文件明细'},
+   {key:'transfer.upload',label:'上传临时文件包',description:'创建和上传本人临时文件包'},
+   {key:'transfer.download',label:'下载临时文件包',description:'下载有权查看的临时文件，包含查看权限'},
+   {key:'transfer.archive',label:'归档临时文件包',description:'归档和恢复有权查看的临时文件包'},
+   {key:'transfer.delete',label:'删除恢复临时文件包',description:'移入回收站及恢复有权查看的临时文件包'}
+  ]},
   {key:'cross',label:'跨境项目',permissions:[
     {key:'cross.view',label:'查看跨境资料',description:'查看获授权跨境项目中的线索、母版和产品包'},
     {key:'cross.create',label:'制作与提交资料',description:'新建资料、维护本人负责的草稿并提交审核'},
@@ -10,6 +17,9 @@ export const permissionGroups:PermissionGroup[] = [
     {key:'cross.delete',label:'删除与恢复跨境资料',description:'移入回收站及恢复，保留来源与历史',highRisk:true},
     {key:'cross.review',label:'审核跨境资料',description:'确认母版、审核产品包并填写退回意见',highRisk:true},
     {key:'cross.assign',label:'分配移交与维护资料',description:'分配或移交可见线索，维护可见项目资料；不扩大查看范围或变更历史母版归属',highRisk:true},
+    {key:'cross.board',label:'查看制作看板',description:'按现有资料查看范围汇总员工制作待办'},
+    {key:'cross.publish',label:'发布产品包',description:'标记整包发布，包含必要查看及下载权限',highRisk:true},
+    {key:'cross.unpublish',label:'取消产品包发布',description:'填写原因取消整包发布并保留历史',highRisk:true},
     {key:'cross.download',label:'下载交付包',description:'下载审核通过的产品包交付文件',highRisk:true},
   ]},
   {key:"asset",label:"素材中心",permissions:[

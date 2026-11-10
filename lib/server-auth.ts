@@ -107,7 +107,7 @@ export async function userForSessionHash(tokenHash:string): Promise<AuthUser | n
   const deniedPermissions=overrideRows.filter(item=>item.effect==="deny").map(item=>item.permissionKey);
   permissions=[...new Set([...permissions,...dutyPermissions({primaryGroupId:row.primaryGroupId,groupScopes,accountResponsibilities}),...allowed])].filter(key=>!deniedPermissions.includes(key));
   const common=getLocalDatabase().prepare('SELECT permissions_json FROM user_common_permissions WHERE user_id=?').get(row.id);
-  if(common){const saved=commonExpanded(JSON.parse(String(common.permissions_json)));permissions=[...permissions.filter(k=>/^(cross|asset|content|review|publishing|version|analytics)\./.test(k)||k.startsWith('business.')&&k!=='business.accounts'),...saved];}
+  if(common){const saved=commonExpanded(JSON.parse(String(common.permissions_json)));permissions=[...permissions.filter(k=>/^(cross|transfer|asset|content|review|publishing|version|analytics)\./.test(k)||k.startsWith('business.')&&k!=='business.accounts'),...saved];}
   return {
     id: row.id,
     commonConfigured:!!common,
@@ -161,7 +161,7 @@ export function projectPermission(user:AuthUser,permission:string,projectId:numb
 }
 export function hasPermission(user: AuthUser, permission: string) {
  if(user.commonConfigured&&!user.projectId&&!isProjectMaster(getLocalDatabase(),user))return commonExpanded(user.permissions).includes(permission);
- if(user.projectId&&/^(cross|asset|content|review|publishing|version|analytics|business)\./.test(permission))return projectPermission(user,permission,user.projectId);
+ if(user.projectId&&/^(cross|transfer|asset|content|review|publishing|version|analytics|business)\./.test(permission))return projectPermission(user,permission,user.projectId);
   return isProjectMaster(getLocalDatabase(),user) || (!user.commonConfigured&&user.roleCode === "super_admin") || ((user.commonConfigured||!user.deniedPermissions.includes(permission))&&permissionGranted(commonExpanded(user.permissions), permission));
 }
 
