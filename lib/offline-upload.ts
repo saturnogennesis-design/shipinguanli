@@ -1,3 +1,4 @@
+import {taskWorkspaceEnabled} from './cross-task-scope';
 import {attachOfflineTask} from './cross-tasks';
 import {initialAssignee,responsible,ownsCrossWork} from './cross-assignment';
 import {createHash} from 'node:crypto';
@@ -58,7 +59,7 @@ export function commitOfflineDraft(db:DatabaseSync,task:OfflineTask,keys:string[
  if(coverKey&&fileIds[0])db.prepare('UPDATE cross_files SET cover_path=? WHERE id=?').run(coverKey,fileIds[0]);
  const cover=body.coverIndex==null?null:fileIds[body.coverIndex]??null;if(body.coverIndex!=null&&(!Number.isInteger(body.coverIndex)||body.coverIndex<0||body.coverIndex>=fileIds.length))throw Error('封面位置无效');if(cover&&!body.files[body.coverIndex!]?.mime.startsWith('image/'))throw Error('封面必须为图片');if(!body.target||priorCover!==cover||coverKey||priorFiles.length!==fileIds.length||priorFiles.some((f,i)=>f.id!==fileIds[i]))db.prepare("UPDATE cross_records SET cover_file_id=?,status=CASE WHEN kind='clue' AND status='approved' THEN 'draft' ELSE status END,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(cover,row.id);row=crossRow(db,row.id,project)!;
  if(body.note?.trim()){changeCrossInTransaction(db,{id:row.id,project,actor:user,revision:row.revision,action:'note',body:{note:body.note,requestKey:task.task_id+'-note'},canEdit:true,canReview:false});row=crossRow(db,row.id,project)!;}
- if(body.submit)row=changeCrossInTransaction(db,{id:row.id,project,actor:user,revision:row.revision,action:'submit',canEdit:true,canReview:false});result={kind:'cross',id:row.id,status:row.status,revision:row.revision,fileIds};
+ if(body.submit&&!(row.kind==='clue'&&row.status==='approved'&&taskWorkspaceEnabled(db,project)))row=changeCrossInTransaction(db,{id:row.id,project,actor:user,revision:row.revision,action:'submit',canEdit:true,canReview:false});result={kind:'cross',id:row.id,status:row.status,revision:row.revision,fileIds};
  }else{
  if(!uploadGroup||!db.prepare("SELECT 1 FROM content_groups WHERE id=? AND account_id=? AND status='active'").get(uploadGroup,project))throw Error('项目上传配置已变更');
  const video=body.kind==='video',old=body.target?db.prepare('SELECT * FROM contents WHERE code=? AND account_id=?').get(body.target.code!,project):null;

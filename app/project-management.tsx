@@ -4,10 +4,9 @@ import {ModuleHeader} from './modules';
 import {ProjectVisibility,CrossConfig} from './project-extra-config';
 import {PublishingLamp} from './publishing-lamp';
 import {CenterDialog} from './communication-center';
-export class ProjectApiError extends Error{constructor(message:string,public readonly details:Record<string,unknown>){super(message);}}
-export async function projectApi(url:string,body?:unknown,method='POST'){
- const response=await fetch(url,body?{method,headers:{'content-type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'}),data=await response.json();if(!response.ok)throw new ProjectApiError(data.error??'读取失败',data);return data;
-}
+export {ProjectApiError} from '@/lib/client-api';
+import {requestProjectJson} from '@/lib/client-api';
+export const projectApi=requestProjectJson;
 type Notify=(message:string,tone?:'success'|'error')=>void;
 type Project={id:number;name:string;code:string;status:string;projectType?:string};
 type ConfigRow={id:number;name:string;status:string;sort_order:number;project_id:number;lamp_text:string;lamp_color:string};
