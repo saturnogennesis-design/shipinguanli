@@ -1,3 +1,15 @@
+# 任务异常只读核对工具（不是系统更新包）
+
+[下载只读核对工具](OrbitTaskCheck-v1.zip)
+
+用于核对已完成主图仍显示待制作、历史重复任务与结果绑定问题。解压到主机安装目录，与package.json、deploy同级，双击ExportTaskCheck.cmd，返回生成的task-check-日期时间.json。
+
+无需更新系统，不自动修复、删除或取消任务。仅指定跨境项目的编号、名称、状态、显示名、来源关系和文件数量，不导出附件、路径、正文、密码或令牌。临时数据库只读验证及ZIP CRC通过，未Windows实机运行。[说明](../diagnostics/task-check/README.md)。
+
+SHA-256：`660a0902bf2fce6acc29ce089d89c864bf294907c2008e74adde860c14b3af6f`。
+
+---
+
 # 主机 V3.31.7：移除人员看板（测试版）
 
 [下载更新包](OrbitVideoSetup-v3.31.7.zip)
