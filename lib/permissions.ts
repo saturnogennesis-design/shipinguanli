@@ -16,7 +16,7 @@ export const permissionGroups:PermissionGroup[] = [
     {key:'cross.archive',label:'归档跨境资料',description:'归档和取消归档资料',highRisk:true},
     {key:'cross.delete',label:'删除与恢复跨境资料',description:'移入回收站及恢复，保留来源与历史',highRisk:true},
     {key:'cross.review',label:'审核跨境资料',description:'确认母版、审核产品包并填写退回意见',highRisk:true},
-    {key:'cross.assign',label:'分配移交与维护资料',description:'分配或移交可见线索，维护可见项目资料；不扩大查看范围或变更历史母版归属',highRisk:true},
+    {key:'cross.assign',label:'分配线索与发布制作任务',description:'发布、分配、移交和取消制作任务，分配可见线索；不扩大待办查看范围，不包含产品发布权限',highRisk:true},
     {key:'cross.board',label:'查看制作看板',description:'按现有资料查看范围汇总员工制作待办'},
     {key:'cross.publish',label:'发布产品包',description:'标记整包发布，包含必要查看及下载权限',highRisk:true},
     {key:'cross.unpublish',label:'取消产品包发布',description:'填写原因取消整包发布并保留历史',highRisk:true},

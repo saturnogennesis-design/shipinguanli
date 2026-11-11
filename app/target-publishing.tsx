@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from './confirm-action';
 import {PermanentDeleteButton} from './permanent-delete-button';
 import {useEffect,useState} from 'react';
 import {PublishingLamp} from './publishing-lamp';
@@ -24,12 +25,12 @@ export function TargetPublishing({notify}:{notify:(message:string,tone?:'success
  async function request(path:string,body:unknown,method='PATCH'){const response=await fetch(path,{method,headers:{'content-type':'application/json'},body:JSON.stringify(body)}),result=await response.json();if(!response.ok)throw new PublishingRequestError(result.error??'操作失败',response.status);return result;}
  async function toggle(item:Content,target:Target){
   const old=item.records.find(record=>record.target_id===target.id),published=!old?.published;
-  if(busy||!data.canStatus)return;if(!published&&!window.confirm(`确认关闭“${item.title}”在“${target.name}”的发布灯？`))return;
+  if(busy||!data.canStatus)return;if(!published&&!await confirmAction(`确认关闭“${item.title}”在“${target.name}”的发布灯？`))return;
   setBusy(true);try{await request('/api/publishing/'+encodeURIComponent(item.code),{targetId:target.id,expectedRevision:old?.revision??0,published});await load();notify('发布状态已更新，操作日志已记录','success');}catch(error){notify((error as Error).message,'error');await load().catch(()=>{});}finally{setBusy(false);}
  }
  async function batch(target:Target){
   const items=data.contents.filter(item=>selected.includes(item.code)&&!item.records.some(record=>record.target_id===target.id&&record.published));
-  if(busy||!data.canStatus||!items.length)return;if(!window.confirm(`确认将勾选内容中的 ${items.length} 条，在“${target.name}”批量点亮？已点亮的内容会保留，操作将记录日志。`))return;
+  if(busy||!data.canStatus||!items.length)return;if(!await confirmAction(`确认将勾选内容中的 ${items.length} 条，在“${target.name}”批量点亮？已点亮的内容会保留，操作将记录日志。`))return;
   setBusy(true);try{await request('/api/publishing/batch',{targetId:target.id,items:items.map(item=>({contentCode:item.code,expectedRevision:item.records.find(record=>record.target_id===target.id)?.revision??0}))},'POST');await load();notify(`已为 ${items.length} 条内容点亮“${target.name}”`,'success');}catch(error){notify((error as Error).message,'error');await load().catch(()=>{});}finally{setBusy(false);}
  }
  async function save(){if(!row||!target||busy)return;setBusy(true);try{await request('/api/publishing/'+encodeURIComponent(row.code),{targetId:target.id,expectedRevision:record?.revision??0,productMasterId:Number(form.product)||null,title:form.title,body:form.body,topics:form.topics.split(/\s+/).filter(Boolean)},'PUT');const fresh=await load(),item=fresh.contents.find(item=>item.code===row.code);if(item)editTarget(item,target.id);notify('发布资料已保存','success');}catch(error){notify((error as Error).message,'error');if(error instanceof PublishingRequestError&&error.status===409){const fresh=await load().catch(()=>null),item=fresh?.contents.find(item=>item.code===row.code);if(item)editTarget(item,target.id);}}finally{setBusy(false);}}

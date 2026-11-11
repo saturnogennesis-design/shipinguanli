@@ -1,5 +1,6 @@
 "use client";
 
+import {confirmAction} from './confirm-action';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {employeeColor} from "@/lib/content-presentation";
 import {ContentPreview} from "./content-preview";
@@ -137,7 +138,7 @@ function DashboardNoticeDialog({id,onClose,onChanged,notify}:{id:number;onClose:
 function RecommendationDialog({items,canCancel,onPreview,onClose,onChanged,notify}:{items:DashboardContent[];canCancel:boolean;onPreview:(item:DashboardContent)=>void;onClose:()=>void;onChanged:()=>Promise<void>;notify:(message:string,tone?:NoticeTone)=>void}) {
   const [busyCode,setBusyCode]=useState("");
   const cancelRecommendation=async(item:DashboardContent)=>{
-    if(!window.confirm(`确认取消“${item.title}”的推荐？\n\n取消后不会删除内容，内容原有公开范围保持不变。`))return;
+    if(!await confirmAction(`确认取消“${item.title}”的推荐？\n\n取消后不会删除内容，内容原有公开范围保持不变。`))return;
     setBusyCode(item.code);
     try{
       const response=await fetch(`/api/contents/${encodeURIComponent(item.code)}`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({action:"unfeature"})});

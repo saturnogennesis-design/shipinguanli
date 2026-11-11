@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from './confirm-action';
 import {useEffect,useState} from 'react';
 import {projectApi} from './project-management';
 import {CenterDialog} from './communication-center';
@@ -8,7 +9,7 @@ type Config={id:number;code?:string;name:string;status:string;media_type?:string
 export function ProjectVisibility({id,notify}:{id:number;notify:Notify}){
  const [people,setPeople]=useState<Person[]>([]),[selected,setSelected]=useState<number[]>([]),[master,setMaster]=useState(0),[busy,setBusy]=useState(false),[search,setSearch]=useState('');
  useEffect(()=>{let live=true;projectApi(`/api/projects/${id}/visibility`).then(data=>{if(live){setPeople(data.users);setSelected(data.selected);setMaster(data.masterId);}}).catch(e=>notify(e.message,'error'));return()=>{live=false;};},[id,notify]);
- async function save(){if(!window.confirm('确认更新项目可见人员？取消授权的员工将不能继续访问该项目。'))return;setBusy(true);try{await projectApi(`/api/projects/${id}/visibility`,{userIds:selected},'PUT');notify('项目可见人员已保存','success');}catch(e){notify((e as Error).message,'error');}finally{setBusy(false);}}
+ async function save(){if(!await confirmAction('确认更新项目可见人员？取消授权的员工将不能继续访问该项目。'))return;setBusy(true);try{await projectApi(`/api/projects/${id}/visibility`,{userIds:selected},'PUT');notify('项目可见人员已保存','success');}catch(e){notify((e as Error).message,'error');}finally{setBusy(false);}}
  return <section className="panel module-panel"><header className="panel-heading"><div><h3>项目可见人员</h3><p>只有hjt可以配置。未勾选者不能进入项目，角色或小组不能绕过；hjt永久可见。</p></div></header><div className="v3-form"><input aria-label="搜索可见人员" placeholder="搜索姓名或账号" value={search} onChange={e=>setSearch(e.target.value)}/><div className="cross-person-list">{people.filter(p=>(p.name+p.username).includes(search)).map(p=><label key={p.id}><input type="checkbox" disabled={busy||p.id===master} checked={p.id===master||selected.includes(p.id)} onChange={e=>setSelected(e.target.checked?[...selected,p.id]:selected.filter(id=>id!==p.id))}/>{p.name}（{p.username}）</label>)}</div><button className="primary-button" disabled={busy} onClick={()=>void save()}>保存可见人员</button></div></section>;
 }
 export function CrossConfig({id,entity,notify}:{id:number;entity:'product'|'type';notify:Notify}){
