@@ -9,7 +9,7 @@ function size(bytes:number){return `${(bytes/1024/1024).toFixed(1)} MB`;}
 function OfficeContent({content,allowDownload=true}:{content:OfficePreview;allowDownload?:boolean}) {
   const [sheet,setSheet]=useState(0);
   const table=(rows:string[][])=><div className="report-document-table"><table><tbody>{rows.map((row,index)=><tr key={index}>{row.map((cell,column)=><td key={column}>{cell}</td>)}</tr>)}</tbody></table></div>;
-  return <>{content.kind==="word"?<article className="report-word-preview">{content.blocks.length?content.blocks.map((block,index)=>block.type==="paragraph"?<p key={index}>{block.text||"\u00a0"}</p>:<div key={index}>{table(block.rows)}</div>):<p>{allowDownload?'正文为空或仅包含图片，请下载原件查看。':'正文为空或仅包含图片，此内容预览未覆盖图片，请联系管理员使用完整文档预览。'}</p>}</article>:<><nav className="report-sheet-tabs" aria-label="选择工作表">{content.sheets.map((item,index)=><button key={index} aria-pressed={sheet===index} onClick={()=>setSheet(index)}>{item.name}</button>)}</nav>{table(content.sheets[sheet]?.rows??[])}</>}{content.truncated?<p role="status">{allowDownload?'仅展示部分内容，请下载原件查看完整文档。':'仅展示部分正文或表格内容，此预览不是完整文档排版。'}</p>:null}<p className="report-document-hint">{allowDownload?'此处为正文／表格内容预览，不执行宏或公式；复杂排版、图片、图表及数字格式请下载原件查看。':'此处为正文／表格内容预览，不执行宏或公式；复杂排版、图片和图表可能不完整。未审核通过的文档不能交付下载。'}</p></>;
+  return <>{content.kind==="word"?<article className="report-word-preview">{content.blocks.length?content.blocks.map((block,index)=>block.type==="paragraph"?<p key={index}>{block.text||"\u00a0"}</p>:<div key={index}>{table(block.rows)}</div>):<p>{allowDownload?'正文为空或仅包含图片，请下载原件查看。':'正文为空或仅包含图片，此内容预览未覆盖图片，请联系管理员使用完整文档预览。'}</p>}</article>:<><nav className="report-sheet-tabs" aria-label="选择工作表">{content.sheets.map((item,index)=><button key={index} aria-pressed={sheet===index} onClick={()=>setSheet(index)}>{item.name}</button>)}</nav>{table(content.sheets[sheet]?.rows??[])}</>}{content.truncated?<p role="status">{allowDownload?'仅展示部分内容，请下载原件查看完整文档。':'仅展示部分正文或表格内容，此预览不是完整文档排版。'}</p>:null}<p className="report-document-hint">{allowDownload?'此处为正文／表格内容预览，不执行宏或公式；复杂排版、图片、图表及数字格式请下载原件查看。':'此处为正文／表格内容预览，不执行宏或公式；复杂排版、图片和图表可能不完整。'}</p></>;
 }
 export function DocumentPreview({file,onClose,large=false,allowDownload=true,controls}:{file:ReportAttachment|File;onClose:()=>void;large?:boolean;allowDownload?:boolean;controls?:ReactNode}) {
   const [state,setState]=useState<{loading:boolean;error?:string;url?:string;office?:OfficePreview}>({loading:true});
@@ -21,7 +21,7 @@ export function DocumentPreview({file,onClose,large=false,allowDownload=true,con
       if(file instanceof File)blob=file;
       else {
         const response=await fetch(file.url+((kind==="doc"||kind==="xls")?(file.url.includes("?")?"&preview=1":"?preview=1"):""),{cache:"no-store",signal:controller.signal});
-        if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error??"附件读取失败");}
+        if(!response.ok||response.headers.get("content-type")?.includes("application/json")){const data=await response.json().catch(()=>({}));throw Error(data.error??"附件读取失败");}
         blob=await response.blob();
       }
       if(kind==="docx"||kind==="xlsx") {

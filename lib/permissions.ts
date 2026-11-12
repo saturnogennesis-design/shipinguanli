@@ -3,11 +3,11 @@ export type PermissionGroup = { key:string; label:string; permissions:Permission
 
 export const permissionGroups:PermissionGroup[] = [
   {key:'transfer',label:'临时文件中转站',permissions:[
-   {key:'transfer.view',label:'查看临时文件包',description:'按项目和资料范围查看临时文件包及文件明细'},
+   {key:'transfer.view',label:'查看临时文件包',description:'查看当前项目内所有临时文件包及文件明细，不限制上传人'},
    {key:'transfer.upload',label:'上传临时文件包',description:'创建和上传本人临时文件包'},
    {key:'transfer.download',label:'下载临时文件包',description:'下载有权查看的临时文件，包含查看权限'},
    {key:'transfer.archive',label:'归档临时文件包',description:'归档和恢复有权查看的临时文件包'},
-   {key:'transfer.delete',label:'删除恢复临时文件包',description:'移入回收站及恢复有权查看的临时文件包'}
+   {key:'transfer.delete',label:'删除恢复本人临时文件',description:'仅移除恢复本人文件、移入回收站及恢复本人文件包，不能删除他人内容'}
   ]},
   {key:'cross',label:'跨境项目',permissions:[
     {key:'cross.view',label:'查看跨境资料',description:'查看获授权跨境项目中的线索、母版和产品包'},
