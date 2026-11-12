@@ -24,7 +24,7 @@ with sync_playwright() as p:
   r=a.fetch(base+url,headers={**headers(who,proj),**(extra or {})},data=data,method=method or ('POST' if data is not None else 'GET'));assert r.status==status,(url,r.status,r.text());checks+=1;return r
  def catalog(who='owner'):return api('/api/transfer-packages',who=who).json()['items']
  def pack(id,who='owner'):return next(p for p in catalog(who) if p['id']==id)
- pid=api('/api/transfer-packages',{'title':'临时共享资料'} ,status=201).json()['id']
+ pid=api('/api/transfer-packages',{'title':'临时共享资料','contentType':'document'} ,status=201).json()['id']
  def upload(name,data):return api('/api/transfer-packages/'+str(pid)+'?fileSize='+str(len(data))+'&fileName='+__import__('urllib.parse',fromlist=['quote']).quote(name),data,extra={'content-type':'application/octet-stream'},status=201).json()['id']
  image=upload('图片.png',png());text=upload('说明.txt','临时文件说明'.encode());word=upload('资料.docx',docx());video=upload('演示.mp4',Path('/tmp/transfer-preview-test.mp4').read_bytes());unsupported=upload('未知.bin',b'unknown')
  assert pack(pid,'receiver')['canDelete'] is False;assert pack(pid,'receiver')['canArchive'] is False;assert pack(pid,'reviewer')['files'];checks+=3
@@ -36,7 +36,7 @@ with sync_playwright() as p:
  api('/api/transfer-files/'+str(image),who='reviewer',status=403)
  assert api('/api/transfer-files/'+str(image)+'?preview=1',who='reviewer').headers['content-type']=='image/png';checks+=1
  before=db.execute("SELECT count(*) FROM audit_logs WHERE action='transfer.download_file'").fetchone()[0]
- assert api('/api/transfer-files/'+str(text)+'?preview=1',who='reviewer').text()=='临时文件说明';assert api('/api/transfer-files/'+str(image),who='receiver').body()==png();assert db.execute("SELECT count(*) FROM audit_logs WHERE action='transfer.download_file'").fetchone()[0]==before+1;checks+=3
+ assert api('/api/transfer-files/'+str(text)+'?preview=1',who='reviewer').text()=='临时文件说明';assert zipfile.ZipFile(io.BytesIO(api('/api/transfer-files/'+str(image),who='receiver').body())).read('图片.png')==png();assert db.execute("SELECT count(*) FROM audit_logs WHERE action='transfer.download_file'").fetchone()[0]==before+1;checks+=3
  r=api('/api/transfer-files/'+str(video)+'?preview=1',who='reviewer',status=206,extra={'range':'bytes=0-7'});assert len(r.body())==8 and r.headers['content-type']=='video/mp4';checks+=1
  api('/api/transfer-files/'+str(unsupported)+'?preview=1',who='reviewer',status=415)
  rev=pack(pid)['revision'];api('/api/transfer-files/'+str(text),{'revision':rev-1},method='DELETE',status=409);api('/api/transfer-files/'+str(text),{'revision':rev},method='DELETE');assert text not in [f['id'] for f in pack(pid)['files']];checks+=1
@@ -54,7 +54,7 @@ with sync_playwright() as p:
  # Dragging adds files; closing by Cancel clears them as well.
  dialog.locator('.transfer-drop').evaluate("e=>{const d=new DataTransfer();d.items.add(new File(['drag'],'拖入.txt',{type:'text/plain'}));e.dispatchEvent(new DragEvent('drop',{bubbles:true,dataTransfer:d}));}");expect(dialog.locator('.transfer-selected-files')).to_contain_text('拖入.txt');checks+=1;dialog.get_by_role('button',name='取消',exact=True).click()
  # Partially uploaded files can be removed after a later file fails; no silent repeat of successful uploads.
- page.get_by_role('button',name='上传文件包',exact=True).click();dialog=page.get_by_role('dialog',name='上传临时文件包');dialog.get_by_label('文件包名称').fill('部分失败');dialog.get_by_label('选择临时文件').set_input_files([{'name':'已传.txt','mimeType':'text/plain','buffer':b'first'},{'name':'失败.txt','mimeType':'text/plain','buffer':b'second'}])
+ page.get_by_role('button',name='上传文件包',exact=True).click();dialog=page.get_by_role('dialog',name='上传临时文件包');dialog.get_by_label('文件包名称').fill('部分失败');dialog.get_by_label('业务内容',exact=True).select_option('document');dialog.get_by_label('选择临时文件').set_input_files([{'name':'已传.txt','mimeType':'text/plain','buffer':b'first'},{'name':'失败.txt','mimeType':'text/plain','buffer':b'second'}])
  def fail_second(route):
   if 'fileName=' in route.request.url and '%E5%A4%B1%E8%B4%A5' in route.request.url:route.fulfill(status=409,content_type='application/json',body='{"error":"测试网络失败"}')
   else:route.continue_()
@@ -62,7 +62,7 @@ with sync_playwright() as p:
  article=page.locator('article[data-package-id="'+str(pid)+'"]');article.get_by_text('文件明细',exact=True).click();page.screenshot(path=str(out/'transfer-files.png'))
  # Download buttons yield real browser download events with the actual payload.
  with page.expect_download() as dl:article.locator('details').first.locator('div').filter(has_text='说明.txt').get_by_role('button',name='下载',exact=True).click()
- assert Path(dl.value.path()).read_bytes()=='临时文件说明'.encode();checks+=1
+ assert zipfile.ZipFile(dl.value.path()).read('说明.txt')=='临时文件说明'.encode();assert dl.value.suggested_filename=='临时共享资料.zip';checks+=1
  with page.expect_download() as dl:article.get_by_role('button',name='整包下载',exact=True).click()
  assert zipfile.ZipFile(dl.value.path()).testzip() is None;checks+=1
  # Missing originals produce an in-page explanation, instead of an apparently inert download.
