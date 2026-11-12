@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {crossEditBase,mergeCrossEdit} from '../lib/offline-cross-merge.ts';
+const base=()=>({revision:1,title:'旧名称',parentId:1,mainId:null,productCategoryId:2,data:{keywords:'戒指',description:'旧说明'},coverFileId:10,files:[{id:10,name:'a.png',mime:'image/png',size:4}]});
+test('无正文变化的主机版本更新可重用基准，互不影响字段三方合并',()=>{const b=base(),h={...b,revision:3,data:{...b.data,description:'主机说明'}},l={...b,title:'本地名称',data:{...b.data,keywords:'项链'}};assert.deepEqual(mergeCrossEdit(b,l,h),{title:'本地名称',parentId:1,mainId:null,productCategoryId:2,data:{keywords:'项链',description:'主机说明'}});assert.equal(b.title,'旧名称');});
+test('同字段不同改动、删除冲突及文件封面变化拒绝自动覆盖',()=>{const b=base();assert.throws(()=>mergeCrossEdit(b,{...b,title:'本地'}, {...b,title:'主机'}),/名称/);assert.throws(()=>mergeCrossEdit(b,{...b,data:{}},{...b,data:{keywords:'新关键词'}}),/资料字段/);assert.throws(()=>mergeCrossEdit(b,b,{...b,files:[]}),/文件或封面/);assert.throws(()=>mergeCrossEdit(b,b,{...b,coverFileId:null}),/封面/);});
+test('相同修改不冲突，单方删除保留删除，基准提取保留文件顺序',()=>{const b=base();assert.equal(mergeCrossEdit(b,{...b,title:'相同'},{...b,title:'相同'}).title,'相同');assert.equal(mergeCrossEdit(b,{...b,data:{keywords:'戒指'}},b).data.description,undefined);assert.deepEqual(crossEditBase({revision:1,title:'旧名称',parent_id:1,main_id:null,product_category_id:2,body_json:JSON.stringify(b.data),cover_file_id:10},[{id:10,file_name:'a.png',mime_type:'image/png',file_size:4}]),b);});
