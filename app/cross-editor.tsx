@@ -28,6 +28,8 @@ export function CrossEditor({renderChildren,onClueSubmitted,uploadAction,initial
  const source=rows.find(r=>r.id===parent),mainRow=rows.find(r=>r.id===main),linked=kind==='package'&&packageType!=='main';
  const formKey=JSON.stringify({assigneeId,title,parent,main,packageType,category,data,cover,files:files.map(f=>f.id),removed,pending:pending.map(p=>p.key),videoCover:videoCover?.name??null});const [savedKey,setSavedKey]=useState(formKey);const dirty=formKey!==savedKey||Boolean(note.trim());
  async function refresh(id:number,notifyParent=true){const d=await projectApi('/api/cross-records?id='+id) as Detail;setDetail(d);setRow(d.row);setFiles(d.files);if(notifyParent)onDetailChanged(d);return d;}
+ const enterLatest=useEffectEvent(()=>{void startEditing();});
+ useEffect(()=>{if(initialEditing&&initial?.row.id)enterLatest();},[initialEditing,initial?.row.id]);
  const syncDetail=useEffectEvent(async()=>{if(editing||!row)return;try{await refresh(row.id);}catch{/* Deleted or unavailable records are handled on return to the library. */}});
  useEffect(()=>{const update=()=>void syncDetail();window.addEventListener('orbit-employee-synced',update);return()=>window.removeEventListener('orbit-employee-synced',update);},[]);
  async function call(current:Row,action:string,extra:Record<string,unknown>={}){return (await projectApi('/api/cross-records/'+current.id,{action,revision:current.revision,...extra},'PATCH')).row as Row;}
