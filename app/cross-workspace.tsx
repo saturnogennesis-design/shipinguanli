@@ -1,4 +1,5 @@
 "use client";
+import {ClueBatchComposer} from './clue-batch-composer';
 import {confirmAction} from './confirm-action';
 import {ScopedTaskWorkspace} from './scoped-task-workspace';
 import {CrossPublication} from './cross-publication';
@@ -65,6 +66,7 @@ function LegacyCrossWorkspace({requestedScope,requestEpoch,module:requestedModul
  useEffect(()=>{const handler=(event:Event)=>{const row=(event as CustomEvent<{row:Row}>).detail.row;void open(row.id);};window.addEventListener('orbit-cross-related-detail',handler);return()=>window.removeEventListener('orbit-cross-related-detail',handler);});
  function create(d:Draft){setStack(old=>[...old,snapshot()]);setDetail(null);setDraft(d);setEpoch(n=>n+1);requestAnimationFrame(()=>document.querySelector('.project-workspace')?.scrollTo({top:0}));}
  async function closeEditor(){setDraft(null);setDetail(null);if(stack.length){const frame=stack[stack.length-1];setStack(stack.slice(0,-1));restore(frame);}}
+ if(!detail&&draft?.kind==='clue')return <ClueBatchComposer project={projectId} rows={rows} people={people} access={access} notify={notify} onChanged={load} onClose={()=>{setDraft(null);void load();}}/>;
  if(detail||draft)return <CrossEditor relatedView={detail?relatedViews[detail.row.id]??emptyRelatedView:emptyRelatedView} onRelatedViewChange={value=>{if(detail)setRelatedViews(old=>({...old,[detail.row.id]:value}));}} onDetailChanged={updated=>{setDetail(updated);setDraft(null);}} initialTab={detail?detailTabs[detail.row.id]??'info':'info'} onTabChange={tab=>{if(detail)setDetailTabs(old=>({...old,[detail.row.id]:tab}));}} key={epoch} initial={detail} draft={draft} rows={rows} people={people} categories={categories} types={types} access={access} userId={user} project={projectId} notify={notify} onClose={()=>void closeEditor()} onChanged={load} onCreate={create}/>;
  const kind=module==='线索库'?'clue':module==='母版库'||module==='母版审核'?'mother':'package',reviewFlow=kind!=='clue',statusView=reviewFlow&&crossReviewViews.includes(lifecycle),audit=lifecycle==='pending',productPage=kind==='package'&&!audit;
  const queueMatches=(r:Row,k:string)=>r.actionable&&(r.kind===k||(k==='mother'&&r.kind==='clue'||k==='package'&&r.kind==='mother')&&r.workState==='produce');

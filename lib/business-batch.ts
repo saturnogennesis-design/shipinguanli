@@ -5,7 +5,7 @@ import {hasPermission,type AuthUser} from './server-auth';
 import {maySeeProject} from './project-visibility';
 import {contentScopeSql,contentMutationScopeSql} from './content-scope';
 import {crossAccess} from './cross-auth';
-import {crossRow,recordVisible,changeCross,crossLifecycle,type CrossRecord} from './cross-workflow';
+import {crossRow,crossSourceAvailable,recordVisible,changeCross,crossLifecycle,type CrossRecord} from './cross-workflow';
 import {assignCross,prioritizeCross,ownsCrossWork} from './cross-assignment';
 import {atomicWrite} from './publishing-write';
 import {deletionPlan,type BusinessKind} from './permanent-delete';
@@ -40,7 +40,7 @@ export function changeBatchRecord(db:DatabaseSync,user:AuthUser,kind:BusinessKin
   if(action==='assign')return assignCross(db,{...input,assignee:options.assigneeId,canAssign:access.canAssign});
   if(action==='urgency')return prioritizeCross(db,{...input,urgency:options.urgency});
   if(['archive','unarchive','delete','restore'].includes(action))return crossLifecycle(db,{...input,action,canArchive:access.canArchive,canDelete:access.canDelete});
-  if(action==='download'){const blocked=documentDownloadBlocker(db,r);if(blocked)throw Error(blocked);if(!access.canDownload||r.kind!=='package'||r.lifecycle!=='active'||r.status!=='approved')throw Error('仅有下载权限的已通过产品包可下载');return row;}
+  if(action==='download'){const blocked=documentDownloadBlocker(db,r);if(blocked)throw Error(blocked);if(!access.canDownload||r.kind!=='package'||!crossSourceAvailable(db,r)||r.status!=='approved')throw Error('仅有下载权限的已通过产品包可下载');return row;}
   if(!['submit','withdraw'].includes(action))throw Error('不支持的操作');
   if(!access.canAssign&&!ownsCrossWork(r,user.id,db))throw Error('没有修改该资料的权限');
   return changeCross(db,{...input,action,canReview:false,canEdit:access.canEdit||access.canCreate&&r.version_number===0});
