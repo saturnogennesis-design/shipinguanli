@@ -1,0 +1,61 @@
+"""Selected batch operations, confirmation, mixed results and download on temporary data."""
+import os,json,sqlite3,time,zipfile,io
+from pathlib import Path
+from playwright.sync_api import sync_playwright,expect
+s=json.loads(Path(os.environ['ORBIT_QA_STATE_FILE']).read_text());base=os.environ['ORBIT_E2E_BASE_URL'];path=os.environ['ORBIT_QA_DB_PATH'];media=Path(os.environ['ORBIT_QA_MEDIA_DIR']);assert path.startswith('/tmp/') and str(media).startswith('/tmp/') and base.startswith('http://127.0.0.1:');db=sqlite3.connect(path);project=s['project'];prefix='批量验收'+str(time.time_ns());checks=0;errors=[];out=Path('/tmp/v334-screenshots');out.mkdir(exist_ok=True)
+def scalar(sql,args=()):return db.execute(sql,args).fetchone()[0]
+def rec(kind,title,status='approved',parent=None,main=None,typ='main',owner=None):
+ if kind=='package':parent=scalar('SELECT parent_id FROM cross_records WHERE id=?',(main,)) if main else rec('mother',title+'来源')
+ return scalar("INSERT INTO cross_records(project_id,kind,title,creator_id,maker_id,assignee_id,clue_public,status,version_number,parent_id,main_id,package_type,product_category_id,body_json) VALUES(?,?,?,?,?,?,0,?,1,?,?,?,?,?) RETURNING id",(project,kind,prefix+title,s['admin'],owner or s['admin'],s['admin'],status,parent,main,typ,scalar('SELECT product_category_id FROM cross_records WHERE id=?',(s['mother'],)),json.dumps({'keywords':'验收'})))
+clues=[rec('clue','线索甲'),rec('clue','线索乙')];main=rec('package','产品甲',parent=s['mother']);main2=rec('package','产品乙',parent=s['mother']);doc=rec('package','文档甲',parent=s['mother'],main=main,typ='document');video=rec('package','视频乙','pending',parent=s['mother'],main=main2,typ='video');preexisting=scalar("INSERT INTO cross_tasks(project_id,stage,source_id,package_type,assignee_id,status,manual_owner,task_key) VALUES(?,'child',?,'document',?,'todo',1,?) RETURNING id",(project,main2,s['admin'],prefix+'video'))
+# Same project, independently owned temporary packs.
+packs=[]
+for owner,name in [(s['admin'],'本人临时包'),(s['worker'],'他人临时包')]:
+ id=scalar('INSERT INTO transfer_packages(project_id,title,creator_id,content_type) VALUES(?,?,?,\'document\') RETURNING id',(project,prefix+name,owner));key='batch-expanded/'+str(id)+'/文件.pdf';f=media/key;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes(b'%PDF-1.4\n%%EOF');db.execute("INSERT INTO transfer_files(package_id,storage_path,file_name,mime_type,file_size,uploader_id) VALUES(?,?,?,'application/pdf',14,?)",(id,key,'文件.pdf',owner));packs.append(id)
+db.commit()
+with sync_playwright() as p:
+ browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']);ctx=browser.new_context(viewport={'width':1520,'height':1000},accept_downloads=True);n,v=s['cookies']['admin'].split('=',1);ctx.add_cookies([{'name':n,'value':v,'url':base}]);page=ctx.new_page();page.set_default_timeout(12000);page.on('pageerror',lambda e:errors.append(str(e)))
+ def api(path,body=None,cookie=None,expected=200):
+  r=ctx.request.fetch(base+path,method='POST' if body is not None else 'GET',headers={'cookie':cookie or s['cookies']['admin'],'x-orbit-project-id':str(project),'content-type':'application/json'},data=json.dumps(body) if body is not None else None);assert r.status==expected,r.text();return r.json()
+ def confirm():page.get_by_role('dialog',name='操作确认',exact=True).get_by_role('button',name='确认继续',exact=True).click()
+ def select(ids):
+  for id in ids:
+   if scalar('SELECT kind FROM cross_records WHERE id=?',(id,))=='clue':page.get_by_role('checkbox',name='选择'+scalar('SELECT title FROM cross_records WHERE id=?',(id,)),exact=True).check()
+   else:page.locator('tr[data-record-id="'+str(id)+'"]').get_by_role('checkbox').check()
+ def open_action(name):
+  page.get_by_role('region',name='批量操作',exact=True).get_by_role('button',name=name,exact=True).click();return page.get_by_role('dialog',name='批量'+name,exact=True)
+ def inspect(d):d.get_by_role('button',name='检查所选资料',exact=True).click();expect(d).to_contain_text('二次确认')
+ def execute(d,success):d.get_by_role('button',name='确认处理符合条件的资料',exact=True).click();expect(d).to_contain_text('成功 '+str(success)+' 条')
+ def close(d):d.get_by_role('button',name='关闭',exact=True).click()
+ page.goto(base,wait_until='networkidle');page.locator('#project-tab-'+str(project)).click();confirm();nav=page.get_by_role('navigation',name='项目二级导航');nav.get_by_role('button',name='线索库',exact=False).click();select(clues);d=open_action('分配／移交');d.get_by_label('批量领取人',exact=True).select_option(str(s['worker']));inspect(d);expect(d).to_contain_text('测试制作人');assert scalar('SELECT assignee_id FROM cross_records WHERE id=?',(clues[0],))==s['admin'];d.get_by_role('button',name='取消',exact=True).click();assert scalar('SELECT assignee_id FROM cross_records WHERE id=?',(clues[0],))==s['admin'];checks+=4
+ d=open_action('分配／移交');d.get_by_label('批量领取人',exact=True).select_option(str(s['worker']));inspect(d);page.screenshot(path=str(out/'batch-transfer-confirm.png'));execute(d,2);close(d);assert all(scalar('SELECT assignee_id FROM cross_records WHERE id=?',(id,))==s['worker'] for id in clues);checks+=3
+ # Mother maker transfer does not transfer the downstream product's maker.
+ nav.get_by_role('button',name='母版库',exact=False).click();page.get_by_role('tab',name='全部',exact=True).click();select([s['mother']]);d=open_action('分配／移交');expect(d.get_by_label('批量领取人').locator('option[value="public"]')).to_have_count(0);d.get_by_label('批量领取人').select_option(str(s['worker']));inspect(d);execute(d,1);close(d);assert scalar('SELECT maker_id FROM cross_records WHERE id=?',(s['mother'],))==s['worker'];assert scalar('SELECT maker_id FROM cross_records WHERE id=?',(main,))==s['admin'];checks+=4
+ nav.get_by_role('button',name='产品管理',exact=False).click();page.get_by_role('tab',name='全部',exact=True).click();select([main,main2]);d=open_action('发布子包任务');d.get_by_label('批量任务业务分类').select_option('document');d.get_by_label('批量领取人').select_option(str(s['worker']));d.get_by_label('批量任务优先级').select_option('2');inspect(d);expect(d).to_contain_text('可处理 1 条');expect(d).to_contain_text('相同类型');assert scalar("SELECT count(*) FROM cross_tasks WHERE source_id=? AND package_type='document' AND status='todo'",(main,))==0;execute(d,1);close(d);todo=scalar("SELECT id FROM cross_tasks WHERE source_id=? AND package_type='document' AND status='todo'",(main,));checks+=4
+ # Selected failed items remain; clear before the next operation.
+ page.get_by_role('region',name='批量操作',exact=True).get_by_role('button',name='取消选择',exact=True).click();select([main,main2]);d=open_action('标记发布');inspect(d);expect(d).to_contain_text('可处理 1 条');expect(d).to_contain_text('文档子包审核通过');assert scalar('SELECT count(*) FROM cross_publications WHERE record_id=?',(main,))==0;execute(d,1);close(d);assert scalar('SELECT active FROM cross_publications WHERE record_id=?',(main,))==1;assert scalar('SELECT status FROM cross_records WHERE id=?',(video,))=='pending';checks+=5
+ page.get_by_role('region',name='批量操作',exact=True).get_by_role('button',name='取消选择',exact=True).click();select([main]);d=open_action('取消发布');d.get_by_role('textbox').fill('批量验收取消标记');inspect(d);expect(d).to_contain_text('批量验收取消标记');execute(d,1);close(d);assert scalar('SELECT active FROM cross_publications WHERE record_id=?',(main,))==0;checks+=3
+ # Expanded subpackages are independently selectable; mixed parent/child cannot publish children.
+ r=page.locator('tr[data-record-id="'+str(main)+'"]');r.get_by_role('button',name='子包',exact=False).click();select([doc]);d=open_action('标记发布');inspect(d);expect(d).to_contain_text('子包不能单独发布');expect(d.get_by_role('button',name='确认处理符合条件的资料')).to_be_disabled();d.get_by_role('button',name='取消',exact=True).click();page.get_by_role('region',name='批量操作',exact=True).get_by_role('button',name='取消选择',exact=True).click();checks+=2
+ # Tasks use their own IDs and conditions; completed/making items cannot be cancelled.
+ nav.get_by_role('button',name='项目工作台',exact=True).click();page.get_by_role('tab',name='产品与子包',exact=False).click();panel=page.get_by_role('complementary',name='任务列表',exact=True).filter(visible=True) if False else page.locator('.task-workbench-list:visible');panel.locator('tr[data-task-id="'+str(todo)+'"]').get_by_role('checkbox').check();panel.locator('tr[data-task-id="'+str(s['task'])+'"]').get_by_role('checkbox').check();d=open_action('分配／移交');d.get_by_label('批量领取人').select_option(str(s['admin']));inspect(d);execute(d,2);close(d);assert scalar('SELECT assignee_id FROM cross_tasks WHERE id=?',(todo,))==s['admin'];assert scalar('SELECT maker_id FROM cross_records WHERE id=?',(s['child'],))==s['admin'];checks+=3
+ panel.locator('tr[data-task-id="'+str(todo)+'"]').get_by_role('checkbox').check();panel.locator('tr[data-task-id="'+str(s['task'])+'"]').get_by_role('checkbox').check();d=open_action('取消任务');d.get_by_role('textbox').fill('任务不再需要');inspect(d);expect(d).to_contain_text('可处理 1 条');expect(d).to_contain_text('制作中需先退回');execute(d,1);close(d);assert scalar('SELECT status FROM cross_tasks WHERE id=?',(todo,))=='cancelled';assert scalar('SELECT status FROM cross_tasks WHERE id=?',(s['task'],))=='making';checks+=4
+ # Transfer: download confirmation creates a ZIP only after confirming; delete only own packs.
+ nav.get_by_role('button',name='中转站',exact=True).click();page.get_by_label('搜索临时文件包').fill(prefix)
+ for id in packs:page.locator('article[data-package-id="'+str(id)+'"]').get_by_role('checkbox').check()
+ d=open_action('下载');inspect(d);expect(d).to_contain_text('可处理 2 条');page.set_viewport_size({'width':620,'height':850});page.screenshot(path=str(out/'batch-download-narrow.png'));assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1');page.set_viewport_size({'width':1520,'height':1000})
+ with page.expect_download() as download:d.get_by_role('button',name='确认处理符合条件的资料',exact=True).click()
+ downloaded=download.value;archive=Path(downloaded.path());z=zipfile.ZipFile(archive);assert len(z.namelist())==2 and all(n.endswith('.zip') for n in z.namelist());assert z.testzip() is None;expect(d).to_contain_text('已创建下载');close(d);checks+=5
+ # Changes after inspection must be reported and remain selected.
+ for id in packs:page.locator('article[data-package-id="'+str(id)+'"]').get_by_role('checkbox').check()
+ d=open_action('下载');inspect(d);db.execute('UPDATE transfer_packages SET revision=revision+1 WHERE id=?',(packs[1],));db.commit()
+ with page.expect_download() as retry_download:d.get_by_role('button',name='确认处理符合条件的资料',exact=True).click()
+ changed_zip=zipfile.ZipFile(Path(retry_download.value.path()));assert sum(n.endswith('.zip') for n in changed_zip.namelist())==1;expect(d).to_contain_text('成功 1 条');expect(d).to_contain_text('资料已更新');close(d);expect(page.get_by_role('region',name='批量操作',exact=True)).to_contain_text('已选 1 条');page.get_by_role('region',name='批量操作',exact=True).get_by_role('button',name='取消选择',exact=True).click();checks+=3
+ for id in packs:page.locator('article[data-package-id="'+str(id)+'"]').get_by_role('checkbox').check()
+ d=open_action('移入回收站');inspect(d);expect(d).to_contain_text('可处理 1 条');expect(d).to_contain_text('只能删除或恢复自己的文件包');page.screenshot(path=str(out/'batch-mixed-confirm.png'));execute(d,1);close(d);assert scalar('SELECT lifecycle FROM transfer_packages WHERE id=?',(packs[0],))=='deleted';assert scalar('SELECT lifecycle FROM transfer_packages WHERE id=?',(packs[1],))=='active';checks+=4
+ # Direct execution without explicit confirmation must not mutate, including download tickets.
+ api('/api/business-batch',{'kind':'transfer','action':'download','mode':'download','items':[{'key':packs[1]}]},expected=400)
+ api('/api/business-batch',{'kind':'cross','action':'assign','mode':'execute','requestKey':'no-confirm-001','items':[{'key':clues[0],'revision':scalar('SELECT revision FROM cross_records WHERE id=?',(clues[0],))}],'options':{'assigneeId':s['admin']}},expected=400)
+ denied=api('/api/business-batch',{'kind':'cross','action':'assign','mode':'preview','items':[{'key':clues[0]}],'options':{'assigneeId':s['admin']}},cookie=s['cookies']['worker']);assert denied['success']==0;checks+=3
+ assert not errors,errors;browser.close()
+print(json.dumps({'checks':checks,'pageErrors':errors,'screenshots':str(out)},ensure_ascii=False))
