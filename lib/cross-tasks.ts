@@ -32,7 +32,7 @@ export function syncCrossTasks(db:DatabaseSync,project:number){if(!taskWorkspace
  }
 
  const status=superseded?'superseded':result?.lifecycle==='archived'?'archived':!crossSourceAvailable(db,source)||source.id!==result?.id&&source.status!=='approved'||result&&result.lifecycle!=='active'?'blocked':result?result.status==='draft'?'making':task.stage==='child'&&result.status==='rejected'?'todo':result.status:'todo';
- const owner=superseded?task.assignee_id:result?.maker_id??(task.manual_owner?task.assignee_id:task.stage==='mother'?source.assignee_id??null:task.assignee_id??source.maker_id);
+ const owner=superseded?task.assignee_id:result?.maker_id??(task.manual_owner?task.assignee_id:task.stage==='mother'?source.assignee_id??null:task.stage==='product'?source.maker_id:task.assignee_id??source.maker_id);
  const priority=['mother','product'].includes(task.stage)&&['todo','making','rejected'].includes(status)?source.urgency??0:Math.max(task.priority,result?.urgency??0);
  if(status!==task.status||owner!==task.assignee_id||priority!==task.priority||(result?.id??null)!==task.result_id){db.prepare('UPDATE cross_tasks SET result_id=?,assignee_id=?,priority=?,status=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(result?.id??null,owner,priority,status,task.id);if(result&&owner&&Number(db.prepare('SELECT actor_id FROM cross_events WHERE record_id=? ORDER BY id DESC LIMIT 1').get(result.id)?.actor_id)===owner)db.prepare('INSERT INTO cross_task_reads VALUES(?,?,?) ON CONFLICT(user_id,task_id) DO UPDATE SET revision=excluded.revision').run(owner,task.id,task.revision+1);}
  }
