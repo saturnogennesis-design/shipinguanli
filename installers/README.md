@@ -1,3 +1,24 @@
+# 主机V3.36.0 + 员工端1.4.0：审核修改与同步集中处理（测试版）
+
+[Windows主机更新包](OrbitVideoSetup-v3.36.0.zip) · [Windows员工端](OrbitEmployee-v1.4.0.zip) · [Mac Apple芯片员工端](OrbitEmployee-Mac-arm64-v1.4.0.zip) · [Mac Intel员工端](OrbitEmployee-Mac-x64-v1.4.0.zip)
+
+主账号新增“员工同步管理”“全平台业务清理”；单条及批量审核可在弹窗内修改，生成新版本后继续审核。同步指令等待编辑／上传结束，保留本地备份，实际执行后回传；彻底清理关联业务或本地备份均二次确认。共用附件、必要审计和删除标记保留，旧队列不能恢复已清理资料。
+
+先备份主机数据库及媒体，运行主机Update.cmd；再使用原电脑账号运行员工UpdateEmployee.cmd／UpdateEmployee.command一次。此次新增本地模块，Windows与Mac旧程序都需完整包更新；不要卸载、删除data或清除待同步附件。仅浏览器员工刷新即可。先一台员工电脑验收再推广。
+
+56项同步及安装布局检查、97项业务回归、38项新主机浏览器检查、14项实际员工程序联动检查及29项原批量审核浏览器回归通过；类型、重点ESLint与生产构建通过。无页面脚本异常。包内文件SHA-256、ZIP CRC及Mac执行权限校验通过。未正式部署，未Windows／Mac实机运行安装更新。
+
+[验收与更新说明](../V3.36-审核修改与员工同步管理验收.md) · [主机同步管理预览](../docs/screenshots/v3.36-sync-management.png) · [审核修改预览](../docs/screenshots/v3.36-review-edit.png) · [员工编辑保护](../docs/screenshots/v3.36-employee-edit-safe.png)
+
+源码提交：`dad59828badd05a29b2b80d4a6e254c1001a29d6`。下列校验值也见各包的.sha256文件：
+
+- OrbitVideoSetup-v3.36.0.zip：`457a3288410b4dfad59b477158caf358157e6e07be5bbecdc255e61d0a44c0e1`
+- OrbitEmployee-v1.4.0.zip：`670b878674a25ea3f5fa0e98dde4b7f9c25f3b81d3e1cdcb6b79402ac37e2fd7`
+- OrbitEmployee-Mac-arm64-v1.4.0.zip：`596c2d19a2721e9963dc66b70e4ba477fcb4b0d896803b4d6ba0e7ee4100fb91`
+- OrbitEmployee-Mac-x64-v1.4.0.zip：`4886074b399d4a1b320b01659dd53947d99394049faf42cc01365f6ec15a7b66`
+
+---
+
 # 主机V3.35.0：母版移交与流转状态（测试版）
 
 [下载Windows主机更新包](OrbitVideoSetup-v3.35.0.zip) · [工作台预览](../docs/screenshots/v3.35-workbench-wide.png) · [母版主包状态](../docs/screenshots/v3.35-mother-main-status.png) · [产品当前流转](../docs/screenshots/v3.35-product-current-flow.png)
