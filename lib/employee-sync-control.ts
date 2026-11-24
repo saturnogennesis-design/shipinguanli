@@ -1,0 +1,27 @@
+import {isProjectMaster} from './project-visibility';
+import type {DatabaseSync} from 'node:sqlite';
+import {atomicWrite} from './publishing-write';
+export const syncCommands=['retry','hold','adopt_host','discard','purge_local','reconcile'] as const;
+export type SyncCommand=typeof syncCommands[number];
+export function recordDevice(db:DatabaseSync,user:number,input:Record<string,unknown>){
+ if(input.serverId&&input.serverId!==db.prepare('SELECT server_id FROM offline_server_identity WHERE id=1').get()?.server_id)throw Error('主机身份已变化，请重新登录员工端');
+ const id=String(input.deviceId??'');if(!/^[a-zA-Z0-9-]{16,100}$/.test(id))throw Error('设备标识无效');
+ const old=db.prepare('SELECT user_id FROM employee_devices WHERE id=?').get(id);if(old&&old.user_id!==user)throw Error('设备账号不一致');
+ const jobs=Array.isArray(input.jobs)?input.jobs:[];if(jobs.length>1000)throw Error('每次最多上报1000个待处理任务');
+ const clean=jobs.map(j=>{if(!j||typeof j!=='object')throw Error('任务格式无效');const v=j as Record<string,unknown>;return {id:String(v.id??'').slice(0,100),project:Number(v.project)||0,title:String(v.title??'未命名资料').slice(0,160),state:String(v.state??'').slice(0,30),error:String(v.error??'').slice(0,1000),created:Number(v.created)||0,updatedAt:String(v.updatedAt??'').slice(0,80),revision:Number(v.revision)||0,files:Number(v.files)||0,bytes:Number(v.bytes)||0,localRetained:Boolean(v.localRetained),fingerprint:String(v.fingerprint??'').slice(0,64),dependsOn:Array.isArray(v.dependsOn)?v.dependsOn.map(String).slice(0,100):[],targetId:Number(v.targetId)||null,targetCode:String(v.targetCode??'').slice(0,100),kind:String(v.kind??'').slice(0,30),baseUpdatedAt:String(v.baseUpdatedAt??'').slice(0,80),localSummary:String(v.localSummary??'').slice(0,2000)};});
+ const now=Date.now(),report={jobs:clean,busy:Boolean(input.busy),editing:Boolean(input.editing),paused:Boolean(input.paused),pendingFiles:Number(input.pendingFiles)||0,lastAudit:Number(input.lastAudit)||0,lastFullAudit:Number(input.lastFullAudit)||0,totalJobs:Number(input.totalJobs)||clean.length,truncated:Boolean(input.truncated)};
+ db.prepare('INSERT INTO employee_devices(id,user_id,label,version,last_seen,last_sync,report_json) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET label=excluded.label,version=excluded.version,last_seen=excluded.last_seen,last_sync=excluded.last_sync,report_json=excluded.report_json,revision=employee_devices.revision+CASE WHEN employee_devices.report_json<>excluded.report_json THEN 1 ELSE 0 END').run(id,user,String(input.label??'员工电脑').slice(0,100),String(input.version??'').slice(0,30),now,Number(input.lastSync)||null,JSON.stringify(report));
+ if(Array.isArray(input.acks))for(const value of input.acks.slice(0,100)){const a=value as Record<string,unknown>;db.prepare("UPDATE employee_sync_commands SET status=?,result=?,finished_at=? WHERE id=? AND device_id=? AND status='pending'").run(a.ok?'done':'failed',String(a.result??'').slice(0,1000),now,Number(a.id),id);}
+ return db.prepare("SELECT id,action,job_id AS jobId,payload_json FROM employee_sync_commands WHERE device_id=? AND status='pending' ORDER BY id LIMIT 50").all(id).map(c=>({...c,payload:JSON.parse(String(c.payload_json)),payload_json:undefined}));
+}
+export function queueSyncCommand(db:DatabaseSync,actor:number,input:{deviceId:string;revision:number;action:SyncCommand;jobIds:string[];confirmed:boolean;reason:string}){return atomicWrite(db,()=>{
+ if(!isProjectMaster(db,{id:actor}))throw Error('仅主账号可处理同步任务');
+ if(!input.confirmed||!syncCommands.includes(input.action))throw Error('请二次确认处理方式');if(!input.reason.trim())throw Error('请填写处理原因');
+ const device=db.prepare('SELECT * FROM employee_devices WHERE id=?').get(input.deviceId);if(!device||device.revision!==input.revision)throw Error('设备报告已更新，请重新检查');
+ const report=JSON.parse(String(device.report_json));const ids=input.action==='reconcile'?[]:input.jobIds;if(!Array.isArray(ids)||input.action!=='reconcile'&&!ids.length||ids.length>100||new Set(ids).size!==ids.length)throw Error('请选择1至100条不同任务');
+ const selected=new Set(ids);if(['hold','adopt_host','discard','purge_local'].includes(input.action)){let changed=true;while(changed){changed=false;for(const j of report.jobs)if((input.action==='purge_local'||j.state!=='retained')&&j.dependsOn?.some((id:string)=>selected.has(id))&&!selected.has(j.id)){selected.add(j.id);changed=true;}}}
+ const affected=[...selected].map(id=>{const j=report.jobs.find((j:{id:string})=>j.id===id);if(!j)throw Error('任务已变化，请刷新');return j;});if(input.action==='purge_local'&&affected.some(j=>j.state!=='retained'))throw Error('请先采用主机版本并保留本地备份，再彻底清理备份');
+ for(const c of db.prepare("SELECT payload_json FROM employee_sync_commands WHERE device_id=? AND status='pending'").all(input.deviceId)){const p=JSON.parse(String(c.payload_json));if(p.affected?.some((j:{id:string})=>selected.has(j.id)))throw Error('所选任务已有待执行指令，请等待电脑回传结果');}
+ db.prepare('INSERT INTO employee_sync_commands(device_id,actor_id,action,job_id,payload_json,created_at) VALUES(?,?,?,?,?,?)').run(input.deviceId,actor,input.action,ids[0]||null,JSON.stringify({reason:input.reason,affected,confirmed:true}),Date.now());
+ db.prepare('INSERT INTO audit_logs(user_id,action,object_type,object_id,details_json) VALUES(?,?,?,?,?)').run(actor,'employee.sync_command','employee_device',input.deviceId,JSON.stringify({action:input.action,jobIds:[...selected],reason:input.reason}));return {queued:1,affected:affected.length};
+ });}

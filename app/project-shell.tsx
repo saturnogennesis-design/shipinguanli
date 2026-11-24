@@ -1,4 +1,6 @@
 "use client";
+import {EmployeeSyncAdmin} from './employee-sync-admin';
+import {AdminMaintenance} from './admin-maintenance';
 import {canLeavePage} from './page-leave-guard';
 import {confirmAction} from './confirm-action';
 import {TransferStation} from './transfer-station';
@@ -22,6 +24,8 @@ export function ProjectShell(){
  const workspaceRef=useRef<HTMLElement>(null),topbarRef=useRef<HTMLElement>(null);
  useEffect(()=>{const bar=topbarRef.current,workspace=workspaceRef.current;if(!bar||!workspace)return;const update=()=>workspace.style.setProperty('--project-topbar-height',Math.ceil(bar.getBoundingClientRect().height)+'px');update();const observer=new ResizeObserver(update);observer.observe(bar);return()=>observer.disconnect();},[]);
  const {context,setContext}=useBusinessContext();const [projects,setProjects]=useState<Project[]>([]),[user,setUser]=useState<User|null>(null),[nav,setNav]=useState('系统首页'),[epoch,setEpoch]=useState(0),[message,setMessage]=useState(''),[error,setError]=useState(''),[badgeWarning,setBadgeWarning]=useState(false),[targetCode,setTargetCode]=useState(''),[noticeTarget,setNoticeTarget]=useState<number|null>(null),[noticeTasks,setNoticeTasks]=useState<NoticeTask[]>([]);
+ const [canMaintain,setCanMaintain]=useState(false);
+ useEffect(()=>{let live=true;void projectApi('/api/admin/sync-control?probe=1').then(d=>{if(live)setCanMaintain(d.master===true);}).catch(()=>{if(live)setCanMaintain(false);});return()=>{live=false;};},[user?.id]);
  const [messageTone,setMessageTone]=useState<'success'|'error'>('success');
  useEffect(()=>{if(!message)return;const timer=setTimeout(()=>setMessage(''),messageTone==='error'?6000:3000);return()=>clearTimeout(timer);},[message,messageTone]);
  const [collapsed,setCollapsed]=useState(false);
@@ -39,11 +43,11 @@ export function ProjectShell(){
  const canNotice=Boolean(can('notice.view'));
  const loadNotices=useCallback(async()=>{if(!canNotice)return;const rules=encodeURIComponent(JSON.stringify([{field:'readState',operator:'eq',value:'待处理',join:'and'}]));const data=await projectApi('/api/notices?rules='+rules);setNoticeTasks(data.items.filter((row:NoticeTask)=>row.actionRequired).slice(0,5));},[canNotice]);
  useEffect(()=>{const first=setTimeout(()=>void loadNotices().catch(()=>{}),0);const timer=setInterval(()=>void loadNotices().catch(()=>{}),30000);return()=>{clearTimeout(first);clearInterval(timer);};},[loadNotices]);
- const globalNav=[['系统首页',''],['通知公告','notice.view'],['工作报备','report.view'],['项目管理','business.accounts'],['组织与权限','admin.view'],['报备模板','report.template_manage'],['配置中心','admin.settings'],['操作日志','audit.view']];
+ const globalNav=[['系统首页',''],['通知公告','notice.view'],['工作报备','report.view'],['项目管理','business.accounts'],['组织与权限','admin.view'],['报备模板','report.template_manage'],['配置中心','admin.settings'],['操作日志','audit.view'],['员工同步管理','__master'],['全平台业务清理','__master']];
  const projectNav=project?.projectType==='cross_border'?[['项目工作台',''],['线索库','cross'],['母版库','cross'],['产品管理','cross'],['中转站','transfer']]:[['项目工作台',''],['素材中心','assets'],['产品库','products'],['内容池','content'],['审核中心','review'],['发布管理','publishing'],['版本管理','versions'],['数据统计','analytics'],['中转站','transfer']];
 
  const globalPage=globalNav.some(([name])=>name===nav);
- const visibleGlobal=globalNav.filter(([name,key])=>!key||can(key)||(name==='工作报备'&&(can('report.receive')||can('report.cc'))));
+ const visibleGlobal=globalNav.filter(([name,key])=>!key||(key==='__master'?canMaintain:can(key))||(name==='工作报备'&&(can('report.receive')||can('report.cc'))));
  const globalButton=([name]:string[])=><button className={nav===name?'active':''} aria-current={nav===name?'page':undefined} key={name} onClick={()=>global(name)}><span className="project-nav-label">{name}</span><span className="module-indicators">{project?.badge?.modules?.[name]?.pending?<span className="module-task-count">{project.badge.modules[name].pending}</span>:null}{project?.badge?.modules?.[name]?.updates?<span className="module-unread-dot" aria-label="有未读更新"/>:null}</span></button>;
  return <main className={collapsed?"project-app navigation-collapsed":"project-app"}><aside className="project-sidebar" id="primary-navigation" hidden={collapsed}><h1>内容中台</h1>
  <nav className="project-global-nav" aria-label="全局事项">{visibleGlobal.slice(0).filter(([name])=>['系统首页','通知公告','工作报备'].includes(name)).map(globalButton)}</nav>
@@ -52,7 +56,7 @@ export function ProjectShell(){
  <nav className="project-system-nav" aria-label="系统操作与全局配置"><small>系统与全局配置</small><div>{visibleGlobal.filter(([name])=>!['系统首页','通知公告','工作报备'].includes(name)).map(globalButton)}</div></nav>
  </aside><section ref={workspaceRef} className="project-workspace"><header ref={topbarRef} className="project-topbar"><button className="navigation-toggle" aria-controls="primary-navigation" aria-expanded={!collapsed} onClick={()=>setCollapsed(value=>!value)} aria-label={collapsed?"展开导航":"收起导航"}>{collapsed?"☰ 展开导航":"☰ 收起导航"}</button><div><small>{globalPage?'系统外层':`当前项目：${project?.name??''}`}</small><h1>{nav}</h1></div><span>{user?.displayName}</span><button onClick={async()=>{if(!await canLeavePage())return;await fetch('/api/auth/logout',{method:'POST'});clearBusinessContext();window.location.reload();}}>退出登录</button></header>{message?<div role={messageTone==='error'?'alert':'status'} className={`toast global-toast ${messageTone}`}><span>{messageTone==='error'?'!':'✓'}</span><strong>{message}</strong><button aria-label="关闭提示" onClick={()=>setMessage('')}>×</button></div>:null}{error?<div className="project-load-error" role="alert"><span>{error}</span><button type="button" onClick={()=>void refresh().catch(e=>setError(e.message))}>重新加载</button></div>:null}{badgeWarning?<p className="project-badge-warning" role="status">部分项目提醒暂不可用，项目入口仍可正常使用。</p>:null}<div className="project-content" key={project?.projectType==='cross_border'&&!globalPage?`cross-${project.id}`:`${context?.accountId??'global'}-${nav}-${epoch}`}>
  {nav==='系统首页'?<section className="panel project-module"><h2>选择项目开始工作</h2><p>公告和日报在系统外层使用；项目内的产品、素材、内容和发布业务分别隔离。切换项目后统一进入该项目工作台。</p>{can('notice.view')?<><h3>待处理通知</h3>{noticeTasks.length?noticeTasks.map(item=><button className="project-pending-notice" key={item.id} onClick={()=>setNoticeTarget(item.id)}>{item.title} · {item.requiresReply?'待回复':'待确认已阅'}</button>):<p>暂无待处理通知</p>}</>:null}<div className="project-cards">{projects.map(project=><button key={project.id} onClick={()=>enter(project.id)}><strong>{project.name}</strong><span>进入项目 →</span></button>)}</div>{!projects.length?<p>尚未分配项目，可使用有权限的外层功能。请联系主账号开放项目入口。</p>:null}</section>:
- nav==='项目管理'?<ProjectManagement onChanged={()=>void refresh()} notify={notify}/>:
+ nav==='员工同步管理'&&canMaintain?<EmployeeSyncAdmin/>:nav==='全平台业务清理'&&canMaintain?<AdminMaintenance/>:nav==='项目管理'?<ProjectManagement onChanged={()=>void refresh()} notify={notify}/>:
  nav==='中转站'&&project?<TransferStation project={project.id}/>:project?.projectType==='cross_border'&&!globalPage?<CrossWorkspace requestedScope={targetCode} requestEpoch={epoch} module={nav} projectId={project.id} notify={notify} navigate={global}/>:
  nav==='项目工作台'?<ProjectDashboard navigate={global} displayName={user?.displayName??""} capabilities={project?.capabilities??{}} canManageRecommendations={Boolean(can('content.feature')||can('review.recommend'))} notify={notify}/>:
  nav==='发布管理'?<TargetPublishing notify={notify}/>:

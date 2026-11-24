@@ -52,6 +52,7 @@ export function validateOfflineDraft(db:DatabaseSync,user:number,project:number,
  return media;
 }
 export function beginOffline(db:DatabaseSync,user:number,project:number,id:string,payload:OfflineDraft){
+ if(db.prepare('SELECT 1 FROM offline_cancelled_tasks WHERE user_id=? AND task_id=?').get(user,id))throw Error('此任务已被主账号清理，不能重新上传');
  if(!/^[a-zA-Z0-9-]{16,80}$/.test(id))throw Error('上传任务标识无效');
  const old=db.prepare('SELECT * FROM offline_uploads WHERE user_id=? AND task_id=?').get(user,id) as OfflineTask|undefined;
  if(old){if(old.project_id!==project||old.payload_json!==JSON.stringify(payload))throw Error('任务标识已使用且内容不一致');return old;}
@@ -63,6 +64,7 @@ export function beginOffline(db:DatabaseSync,user:number,project:number,id:strin
 // All linking and idempotency receipts commit together, after bytes have been verified.
 export type OfflineRights={create:boolean;edit:boolean;assign:boolean;submit:boolean;version:boolean;makePublic:boolean};
 export function commitOfflineDraft(db:DatabaseSync,task:OfflineTask,keys:string[],uploadGroup:number|null,rights:OfflineRights={create:true,edit:false,assign:false,submit:false,version:false,makePublic:false}){return atomicWrite(db,()=>{
+ if(db.prepare('SELECT 1 FROM offline_cancelled_tasks WHERE user_id=? AND task_id=?').get(task.user_id,task.task_id)||!db.prepare('SELECT 1 FROM offline_uploads WHERE user_id=? AND task_id=? AND project_id=?').get(task.user_id,task.task_id,task.project_id))throw Error('上传任务已清理或取消，不能继续入库');
  const current=offlineTask(db,task.user_id,task.task_id,task.project_id);if(current.result_json)return JSON.parse(current.result_json);
  const raw=reconcileOfflineDraft(db,task.project_id,JSON.parse(current.payload_json) as OfflineDraft);const coverPosition=raw.files.findIndex(f=>f.cover);const coverKey=coverPosition<0?null:keys[coverPosition];const body={...raw,files:raw.files.filter(f=>!f.cover)};keys=keys.filter((_,i)=>!raw.files[i].cover);if(body.submit&&!rights.submit)throw Error('没有提交权限');if(body.target?!(body.target.newVersion?rights.version:rights.edit||rights.create):!rights.create)throw Error('没有保存权限');validateOfflineDraft(db,task.user_id,task.project_id,raw);const user=task.user_id,project=task.project_id,now=new Date().toISOString();let result:{kind:string;id:number;code?:string;status:string;revision?:number;updatedAt?:string;fileIds?:number[];versionId?:number;syncRevision?:number};
  if(body.kind==='material'){

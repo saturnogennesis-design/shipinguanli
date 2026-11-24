@@ -3,7 +3,7 @@ import {readFile,mkdir,writeFile,rm} from 'node:fs/promises';
 import {join,dirname,resolve} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
-export const WINDOWS_APP_FILES=['start.mjs','server.mjs','store.mjs','updater.mjs','original-system.mjs','install-layout.mjs','README.md','ui/bridge.js','ui/connection.html','ui/index.html','ui/app.js','ui/style.css'];
+export const WINDOWS_APP_FILES=['start.mjs','server.mjs','store.mjs','sync-control.mjs','updater.mjs','original-system.mjs','install-layout.mjs','README.md','ui/bridge.js','ui/connection.html','ui/index.html','ui/app.js','ui/style.css'];
 export async function stageWindowsApp(source,target,manifest){
  if(!/^\d+\.\d+\.\d+$/.test(manifest.version)||!Array.isArray(manifest.files))throw Error('员工端安装清单无效');
  const verified=[];
